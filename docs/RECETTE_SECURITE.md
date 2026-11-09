@@ -43,3 +43,26 @@ La version ne sera commercialisable qu'après exécution de cette liste sur un P
 - [ ] Calcul et conservation de la somme SHA-256 de chaque version.
 
 **Ne fusionner la version de développement qu'après la recette locale, les tests CI et validation explicite.** La fusion du code ne signifie pas que la version est prête pour de vraies ventes.
+
+
+## E. Clients, ventes partielles et dettes — bloc obligatoire de recette
+
+- [ ] Créer un client avec nom, téléphone, adresse et notes puis retrouver sa fiche.
+- [ ] Modifier le client sans changer l'historique de ses ventes.
+- [ ] Ajouter une chaussure et ouvrir la fiche détaillée de produit.
+- [ ] Modifier nom, catégorie, prix d'achat et prix de vente et préserver la quantité actuelle.
+- [ ] Ajouter une nouvelle variante et vérifier son stock initial et son identifiant unique.
+- [ ] Une ancienne vente conserve ses prix d'achat et de vente historiques après modification du produit.
+- [ ] Vente comptant de 10 000 FCFA, paiement total de 10 000 FCFA : reste = 0.
+- [ ] Vente partielle de 10 000 FCFA, acompte de 2 000 FCFA : reste = 8 000 FCFA.
+- [ ] Vente à crédit de 10 000 FCFA, acompte de 0 FCFA : reste = 10 000 FCFA.
+- [ ] Interdire la vente à crédit sans client sélectionné.
+- [ ] Encaisser ensuite 3 000 FCFA : reste = 5 000 FCFA.
+- [ ] Encaisser 5 000 FCFA : vente « Soldée », solde client = 0.
+- [ ] Interdire un règlement supérieur au reste et un paiement sur une vente déjà soldée.
+- [ ] Double validation d'un règlement : un seul paiement enregistré.
+- [ ] Le ticket montre total, payé, reste à payer et nom du client.
+- [ ] La fiche client affiche TOUTES ses ventes, même si l'historique global dépasse 1 000 ventes.
+- [ ] Conserver créances et paiements après redémarrage de ModeStock et mise à jour de la base.
+- [ ] Anciennes ventes antérieures aux créances migrées **une seule fois** comme intégralement payées.
+- [ ] Rapport « ventes du jour » distinct des « encaissements du jour » : les règlements de dettes anciens sont comptés dans l'encaissement, pas comme une nouvelle vente.
