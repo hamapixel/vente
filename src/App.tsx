@@ -387,7 +387,29 @@ export default function App() {
             </div>
             <aside className="cart-panel"><div className="cart-header"><div><h2>Panier actuel</h2><p>{cart.length} ligne(s) dans cette vente</p></div><span className="cart-icon"><ShoppingCart size={21}/></span></div>
               <div className="cart-lines">{cart.length ? cart.map(c => {const v=catalog.find(v=>v.id===c.variantId); if (!v) return null; return <div className="cart-line" key={c.variantId}><div className="cart-mini"><Shirt size={18}/></div><div className="cart-line-main"><strong>{v.name}</strong><small>{v.size} · {v.color}</small><div className="quantity-control"><button aria-label="Diminuer" onClick={() => changeQuantity(c.variantId,-1)}><Minus size={13}/></button><span>{c.quantity}</span><button aria-label="Augmenter" onClick={() => changeQuantity(c.variantId,1)}><Plus size={13}/></button></div></div><strong className="line-price">{money(v.salePrice*c.quantity)}</strong></div>; }) : <div className="cart-empty"><ShoppingBag size={35}/><strong>Votre panier est vide</strong><span>Choisissez un produit pour commencer.</span></div>}</div>
-              <div className="cart-summary"><div className="summary-row"><span>Sous-total</span><strong>{money(subtotal)}</strong></div><label className="discount-field">Remise (FCFA)<input type="number" min="0" max={subtotal} value={discount} onChange={e => setDiscount(number(e.target.value))}/></label><div className="summary-row big-total"><span>Total à encaisser</span><strong>{money(total)}</strong></div><label className="field-label">Moyen de paiement</label><div className="select-wrap full"><select value={payment} onChange={e => setPayment(e.target.value)}>{["Espèces","Orange Money","Moov Money","Autre"].map(p=><option key={p}>{p}</option>)}</select><ChevronDown size={16}/></div><button className="primary-btn checkout-btn" disabled={busy || !cart.length || discount > subtotal} onClick={doCheckout}><CreditCard size={18}/>{busy ? "Enregistrement…" : "Valider la vente"}<ArrowRight size={18}/></button></div>
+              <div className="cart-summary">
+                <label className="field-label">Client (facultatif pour une vente comptant)</label>
+                <div className="cart-customer-row">
+                  <select aria-label="Client de la vente" value={customerId ?? ""} onChange={e=>setCustomerId(e.target.value?Number(e.target.value):null)}>
+                    <option value="">Client de passage</option>
+                    {customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.balance>0?" · Dette "+money(c.balance):""}</option>)}
+                  </select>
+                  <button className="quick-customer-add" type="button" title="Créer un client" aria-label="Créer un client" onClick={addCustomer}><Plus size={18}/></button>
+                </div>
+                <div className="summary-row"><span>Sous-total</span><strong>{money(subtotal)}</strong></div><label className="discount-field">Remise (FCFA)<input type="number" min="0" max={subtotal} value={discount} onChange={e => setDiscount(number(e.target.value))}/></label><div className="summary-row big-total"><span>Total de la vente</span><strong>{money(total)}</strong></div>
+                <label className="field-label">Type de règlement</label>
+                <div className="payment-modes">
+                  <button type="button" className={paymentMode==="full"?"active":""} onClick={()=>setPaymentMode("full")}>Paiement total</button>
+                  <button type="button" className={paymentMode==="partial"?"active":""} onClick={()=>setPaymentMode("partial")}>Acompte / Crédit</button>
+                </div>
+                {paymentMode==="partial"&&<>
+                  <label className="discount-field">Montant reçu maintenant (FCFA)
+                    <input type="number" min="0" max={total} step="1" value={initialReceived} onChange={e=>setInitialReceived(e.target.value)}/>
+                  </label>
+                  <div className="credit-preview"><span>Solde restant dû</span><strong>{money(Math.max(0,total-(Number(initialReceived)||0)))}</strong></div>
+                  {!customerId&&<p className="debt-alert"><CircleAlert size={15}/> Un client identifié est obligatoire pour vendre à crédit.</p>}
+                </>}
+                <label className="field-label">Moyen de paiement</label><div className="select-wrap full"><select value={payment} onChange={e => setPayment(e.target.value)}>{["Espèces","Orange Money","Moov Money","Autre"].map(p=><option key={p}>{p}</option>)}</select><ChevronDown size={16}/></div><button className="primary-btn checkout-btn" disabled={busy || !cart.length || discount > subtotal || (paymentMode==="partial" && !customerId && Number(initialReceived || 0)<total)} onClick={doCheckout}><CreditCard size={18}/>{busy ? "Enregistrement…" : "Valider la vente"}<ArrowRight size={18}/></button></div>
             </aside>
           </div>
         </>}
@@ -396,7 +418,7 @@ export default function App() {
           <div className="page-heading"><div><div className="eyebrow">VOTRE CATALOGUE</div><h1>Produits & variantes</h1><p>Un même vêtement peut être disponible en plusieurs tailles et couleurs.</p></div><button className="primary-btn" onClick={()=>setAddModal(true)}><Plus size={18}/> Ajouter un produit</button></div>
           <section className="panel"><div className="section-heading"><div><h2>Vêtements et chaussures</h2><p>{products.length} produit(s), {catalog.length} variante(s)</p></div><span className="soft-label"><PackageCheck size={15}/> Stock local</span></div>
             <div className="catalog-toolbar compact-toolbar"><div className="search-field"><Search size={18}/><input aria-label="Rechercher dans le catalogue" placeholder="Rechercher nom, chaussure, taille, couleur, référence…" value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={()=>setQuery("")}><X size={15}/></button>}</div><span className="search-count">{filteredVariants.length} résultat(s)</span></div>
-            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="strong-cell">{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun produit correspondant" : "Votre boutique prend forme ici"} description={catalog.length ? "Essayez une taille, une couleur ou une autre référence." : "Ajoutez votre premier produit avec ses tailles, couleurs et prix."} icon={Shirt}/>}
+            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th><th>Détail</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="strong-cell">{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>setProductDetailId(v.productId)}><FileText size={14}/> Détails / Modifier</button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun produit correspondant" : "Votre boutique prend forme ici"} description={catalog.length ? "Essayez une taille, une couleur ou une autre référence." : "Ajoutez votre premier produit avec ses tailles, couleurs et prix."} icon={Shirt}/>}
           </section>
         </>}
 
@@ -411,8 +433,16 @@ export default function App() {
 
         {page === "sales" && <>
           <div className="page-heading"><div><div className="eyebrow">HISTORIQUE</div><h1>Historique des ventes</h1><p>Consultez les transactions enregistrées sur cet ordinateur.</p></div><button className="primary-btn" onClick={()=>navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
-          <section className="panel"><div className="section-heading"><div><h2>Transactions récentes</h2><p>Les 100 dernières ventes enregistrées</p></div></div>{sales.length ? recentTable(sales) : <Empty title="Aucune transaction" description="Les ventes apparaîtront ici après votre premier encaissement." icon={FileText}/>}</section>
+          <section className="panel"><div className="section-heading"><div><h2>Transactions récentes</h2><p>Ventes comptant et à crédit avec suivi des règlements</p></div></div>{sales.length ? recentTable(sales) : <Empty title="Aucune transaction" description="Les ventes apparaîtront ici après votre premier encaissement." icon={FileText}/>}</section>
         </>}
+
+        {page === "customers" && <CustomersPanel
+          customers={customers} sales={sales}
+          onAdd={addCustomer} onEdit={editCustomer}
+          onPay={setPaymentSale}
+          onReceipt={id=>void openTicket(id)}
+          onSell={id=>{setCustomerId(id);navigate("pos");}}
+        />}
 
         {page === "reports" && <>
           <div className="page-heading"><div><div className="eyebrow">ANALYSE COMMERCIALE</div><h1>Rapports de ventes</h1><p>Analysez votre activité et les marges réalisées.</p></div><button className="secondary-btn" onClick={()=>setExpenseModal(true)}><Plus size={17}/> Enregistrer une dépense</button></div>
@@ -485,11 +515,20 @@ export default function App() {
       </form>
     </div>}
 
+    {customerEditorOpen && <CustomerEditor
+      customer={editingCustomer} onClose={()=>{setCustomerEditorOpen(false);setEditingCustomer(null);}}
+      onSaved={id=>{void afterCustomerSaved(id);}}/>}
+    {paymentSale && <PaymentDialog sale={paymentSale} onClose={()=>setPaymentSale(null)} onSaved={()=>{void afterPaymentSaved();}}/>}
+    {productDetailId !== null && products.find(p=>p.id===productDetailId) && <ProductDetailModal
+      product={products.find(p=>p.id===productDetailId)!} categories={categories}
+      onClose={()=>setProductDetailId(null)}
+      onSaved={()=>{setProductDetailId(null);void reload().then(()=>notify("Produit modifié.")).catch(e=>notify(showError(e),"error"));}}
+    />}
     {stockVariant && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setStockVariant(null);}}><form className="modal small-modal" onSubmit={doAdjustStock}><div className="modal-header"><div><span className="eyebrow">MOUVEMENT DE STOCK</span><h2>{stockVariant.name}</h2><p>{stockVariant.size} / {stockVariant.color} · {stockVariant.quantity} pièce(s) actuellement</p></div><button type="button" className="icon-button" onClick={()=>setStockVariant(null)}><X size={20}/></button></div><div className="form-grid"><label>Variation (+ entrée, − sortie)<input required type="number" value={stockDelta} onChange={e=>setStockDelta(e.target.value)}/></label><label>Motif<input required value={stockReason} onChange={e=>setStockReason(e.target.value)}/></label></div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setStockVariant(null)}>Annuler</button><button disabled={busy} className="primary-btn">Enregistrer</button></div></form></div>}
 
     {expenseModal && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setExpenseModal(false);}}><form className="modal small-modal" onSubmit={doAddExpense}><div className="modal-header"><div><span className="eyebrow">DÉPENSE DE BOUTIQUE</span><h2>Nouvelle dépense</h2><p>Suivez les frais qui réduisent votre résultat net.</p></div><button type="button" className="icon-button" onClick={()=>setExpenseModal(false)}><X size={20}/></button></div><div className="form-grid"><label>Description<input required placeholder="Ex. Transport des marchandises" value={expenseLabel} onChange={e=>setExpenseLabel(e.target.value)}/></label><label>Montant (FCFA)<input required type="number" min="1" value={expenseAmount} onChange={e=>setExpenseAmount(e.target.value)}/></label></div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setExpenseModal(false)}>Annuler</button><button disabled={busy} className="primary-btn">Enregistrer</button></div></form></div>}
 
-    {receipt && <div className="modal-overlay"><div className="modal small-modal receipt-modal"><div className="receipt-check"><Check size={30}/></div><h2>Vente enregistrée !</h2><p>La transaction a été sauvegardée localement.</p><div className="receipt-details"><span>Référence</span><strong>{receipt.reference}</strong><span>Montant encaissé</span><strong>{money(receipt.total)}</strong></div><div className="receipt-buttons"><button type="button" className="secondary-btn" onClick={()=>setReceipt(null)}>Continuer</button><button type="button" className="primary-btn" onClick={()=>{const id=receipt.id;setReceipt(null);void openTicket(id);}}><Printer size={17}/> Voir le ticket</button></div></div></div>}
+    {receipt && <div className="modal-overlay"><div className="modal small-modal receipt-modal"><div className="receipt-check"><Check size={30}/></div><h2>Vente enregistrée !</h2><p>La transaction a été sauvegardée localement.</p><div className="receipt-details"><span>Référence</span><strong>{receipt.reference}</strong><span>Montant de la vente</span><strong>{money(receipt.total)}</strong><span>Déjà encaissé</span><strong>{money(receipt.paid)}</strong><span>Reste à payer</span><strong className={receipt.remaining>0?"negative":"positive"}>{receipt.remaining>0?money(receipt.remaining):"Soldé"}</strong></div><div className="receipt-buttons"><button type="button" className="secondary-btn" onClick={()=>setReceipt(null)}>Continuer</button><button type="button" className="primary-btn" onClick={()=>{const id=receipt.id;setReceipt(null);void openTicket(id);}}><Printer size={17}/> Voir le ticket</button></div></div></div>}
     {ticketView && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setTicketView(null);}}><div className="modal ticket-modal"><div className="modal-header"><div><span className="eyebrow">DOCUMENT DE VENTE</span><h2>{shop.receiptFormat==="a4"?"Facture / Reçu":"Ticket de caisse"}</h2><p>Vente {ticketView.reference}</p></div><button className="icon-button" type="button" onClick={()=>setTicketView(null)} aria-label="Fermer"><X size={20}/></button></div><div className="ticket-modal-scroll"><ReceiptView shop={shop} receipt={ticketView}/></div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setTicketView(null)}><ArrowLeft size={16}/> Retour</button><button type="button" className="primary-btn" onClick={()=>window.print()}><Printer size={17}/> Imprimer</button></div></div></div>}
 
 
