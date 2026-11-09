@@ -52,7 +52,7 @@ export default function LoginScreen({ setup, onSuccess, browserPreview, brand }:
               ? <img src={brand.logoData} alt={"Logo de " + brand.name} />
               : <Shirt size={28} strokeWidth={1.9} />}
           </div>
-          <div className="compact-login-appname">ModeStock <span>Local</span></div>
+          <div className="compact-login-appname">VestiFlow</div>
           {brand.name !== "Ma boutique" && <div className="compact-login-shop">{brand.name}</div>}
         </div>
 
@@ -66,7 +66,7 @@ export default function LoginScreen({ setup, onSuccess, browserPreview, brand }:
         </div>
 
         <form className="compact-login-form" onSubmit={submit}>
-          {browserPreview && <div className="auth-error" role="alert">Ouvrez ModeStock dans la fenêtre Tauri, pas dans le navigateur.</div>}
+          {browserPreview && <div className="auth-error" role="alert">Ouvrez VestiFlow dans la fenêtre Tauri, pas dans le navigateur.</div>}
           {error && <div className="auth-error" role="alert">{error}</div>}
 
           <label htmlFor="login-username">Identifiant</label>
@@ -115,7 +115,7 @@ export default function LoginScreen({ setup, onSuccess, browserPreview, brand }:
 
         <div className="compact-login-trust"><span><ShieldCheck size={14}/> Accès protégé</span><span><WifiOff size={14}/> Sans Internet</span></div>
       </div>
-      <p className="compact-login-bottom">ModeStock Local · Gestion de boutique sur cet ordinateur</p>
+      <p className="compact-login-bottom">VestiFlow · Gestion de boutique sur cet ordinateur</p>
     </main>
   );
 }
