@@ -17,6 +17,8 @@ export interface Dashboard {
   salesCount: number;
   lowStock: number;
   variantCount: number;
+  collectedToday: number;
+  outstanding: number;
 }
 export interface Sale {
   id: number;
@@ -25,6 +27,10 @@ export interface Sale {
   totalCost: number;
   paymentMethod: string;
   createdAt: string;
+  paid: number;
+  remaining: number;
+  customerId: number | null;
+  customerName: string | null;
 }
 export interface ReportDay {
   day: string;
@@ -61,6 +67,9 @@ export interface ReceiptDocument {
   subtotal: number;
   discount: number;
   total: number;
+  paid: number;
+  remaining: number;
+  customerName: string | null;
   lines: ReceiptLine[];
 }
 export interface Receipt {
@@ -69,6 +78,8 @@ export interface Receipt {
   total: number;
   totalCost: number;
   createdAt: string;
+  paid: number;
+  remaining: number;
 }
 export interface NewProduct {
   name: string;
@@ -78,3 +89,59 @@ export interface NewProduct {
   variants: { size: string; color: string; quantity: number }[];
 }
 export interface CartLine { variantId: number; quantity: number; }
+
+
+export interface Customer {
+  id: number;
+  name: string;
+  phone: string;
+  address: string;
+  note: string;
+  createdAt: string;
+  totalSales: number;
+  totalPaid: number;
+  balance: number;
+  saleCount: number;
+}
+export interface CustomerInput {
+  name: string;
+  phone: string;
+  address: string;
+  note: string;
+}
+export interface Settlement {
+  saleId: number;
+  amountReceived: number;
+  paid: number;
+  remaining: number;
+  reference: string;
+}
+export interface PaymentEntry {
+  id: number;
+  saleId: number;
+  reference: string;
+  amount: number;
+  method: string;
+  createdAt: string;
+}
+export interface ProductEdit {
+  productId: number;
+  name: string;
+  category: string;
+  variants: Array<{
+    id: number | null;
+    size: string;
+    color: string;
+    purchasePrice: number;
+    salePrice: number;
+    initialQuantity: number | null;
+  }>;
+}
+export interface ProductMovement {
+  date: string;
+  name: string;
+  size: string;
+  color: string;
+  delta: number;
+  reason: string;
+}
