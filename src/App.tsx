@@ -9,7 +9,7 @@ import {
 import { api } from "./api";
 import { matchesProduct, matchesVariant } from "./search";
 import LoginScreen from "./LoginScreen";
-import CustomersPanel, { CustomerEditor, PaymentDialog } from "./CustomersPanel";
+import CustomersPanel, { CustomerEditor, PaymentDialog, type PaymentTarget } from "./CustomersPanel";
 import ProductDetailModal from "./ProductDetailModal";
 import ReceiptView from "./ReceiptView";
 import type { CartLine, Customer, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
@@ -66,7 +66,7 @@ export default function App() {
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerEditorOpen, setCustomerEditorOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
+  const [paymentSale, setPaymentSale] = useState<PaymentTarget | null>(null);
   const [paymentMode, setPaymentMode] = useState<"full" | "partial">("full");
   const [initialReceived, setInitialReceived] = useState("0");
   const [productDetailId, setProductDetailId] = useState<number | null>(null);
@@ -437,7 +437,7 @@ export default function App() {
         </>}
 
         {page === "customers" && <CustomersPanel
-          customers={customers} sales={sales}
+          customers={customers}
           onAdd={addCustomer} onEdit={editCustomer}
           onPay={setPaymentSale}
           onReceipt={id=>void openTicket(id)}
