@@ -12,6 +12,7 @@ import type { CartLine, Dashboard, NewProduct, Receipt, ReportDay, Sale, Shop, V
 type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "reports" | "settings";
 type ProductGroup = { id: number; name: string; category: string; variants: Variant[] };
 type VariantRow = { id: number; size: string; color: string; quantity: string };
+type ProductDraft = Omit<NewProduct, "purchasePrice" | "salePrice"> & { purchasePrice: string; salePrice: string };
 type Notice = { text: string; kind: "success" | "error" } | null;
 const money = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n) + " FCFA";
 const localDate = (d = new Date()) =>
@@ -65,8 +66,8 @@ export default function App() {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 6); return localDate(d); });
   const [to, setTo] = useState(localDate());
   const [report, setReport] = useState<ReportDay[]>([]);
-  const [draft, setDraft] = useState<NewProduct>({ name: "", category: "Maillots", purchasePrice: 0, salePrice: 0, variants: [] });
-  const [variantRows, setVariantRows] = useState<VariantRow[]>([{ id: 1, size: "", color: "", quantity: "0" }]);
+  const [draft, setDraft] = useState<ProductDraft>({ name: "", category: "Maillots", purchasePrice: "", salePrice: "", variants: [] });
+  const [variantRows, setVariantRows] = useState<VariantRow[]>([{ id: 1, size: "", color: "", quantity: "" }]);
 
   const notify = (text: string, kind: "success" | "error" = "success") => setNotice({ text, kind });
   const reload = useCallback(async () => {
@@ -131,12 +132,26 @@ export default function App() {
   function addVariantRow() {
     setVariantRows(rows => [...rows, {
       id: Math.max(0, ...rows.map(row => row.id)) + 1,
-      size: "", color: rows[rows.length - 1]?.color ?? "", quantity: "0"
+      size: "", color: rows[rows.length - 1]?.color ?? "", quantity: ""
     }]);
   }
   async function doAddProduct(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
+    if (!draft.purchasePrice.trim() || !draft.salePrice.trim()) {
+      notify("Renseignez les prix d'achat et de vente.", "error");
+      return;
+    }
+    const purchasePrice = Number(draft.purchasePrice);
+    const salePrice = Number(draft.salePrice);
+    if (![purchasePrice, salePrice].every(value => Number.isSafeInteger(value) && value >= 0)) {
+      notify("Les prix doivent être des montants entiers positifs ou nuls.", "error");
+      return;
+    }
+    if (variantRows.some(row => row.quantity.trim() === "")) {
+      notify("Renseignez une quantité pour chaque taille et couleur.", "error");
+      return;
+    }
     const variants = variantRows.map(row => ({
       size: row.size.trim(),
       color: row.color.trim() || "Standard",
@@ -153,10 +168,10 @@ export default function App() {
     }
     setBusy(true);
     try {
-      await api.createProduct({ ...draft, variants });
+      await api.createProduct({ ...draft, purchasePrice, salePrice, variants });
       setAddModal(false);
-      setDraft({ name: "", category: "Maillots", purchasePrice: 0, salePrice: 0, variants: [] });
-      setVariantRows([{ id: 1, size: "", color: "", quantity: "0" }]);
+      setDraft({ name: "", category: "Maillots", purchasePrice: "", salePrice: "", variants: [] });
+      setVariantRows([{ id: 1, size: "", color: "", quantity: "" }]);
       await reload(); notify("Produit ajouté au catalogue.");
     } catch (e) { notify(showError(e), "error"); } finally { setBusy(false); }
   }
@@ -296,8 +311,8 @@ export default function App() {
         <div className="form-grid two-cols">
           <label>Nom du produit<input required placeholder="Ex. Maillot domicile" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label>
           <label>Catégorie<select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}>{categories.map(c=><option key={c}>{c}</option>)}</select></label>
-          <label>Prix d'achat (FCFA)<input type="number" required min="0" value={draft.purchasePrice} onChange={e=>setDraft({...draft,purchasePrice:number(e.target.value)})}/></label>
-          <label>Prix de vente (FCFA)<input type="number" required min="0" value={draft.salePrice} onChange={e=>setDraft({...draft,salePrice:number(e.target.value)})}/></label>
+          <label>Prix d'achat (FCFA)<input type="number" required min="0" placeholder="Ex. 5000" value={draft.purchasePrice} onChange={e=>setDraft({...draft,purchasePrice:e.target.value})}/></label>
+          <label>Prix de vente (FCFA)<input type="number" required min="0" placeholder="Ex. 8500" value={draft.salePrice} onChange={e=>setDraft({...draft,salePrice:e.target.value})}/></label>
         </div>
         <div className="variants-editor">
           <div className="variants-heading">
@@ -312,7 +327,7 @@ export default function App() {
             {variantRows.map(row => <div className="variant-editor-row" key={row.id}>
               <input aria-label="Taille" required list="size-options" placeholder="Ex. M, XL, 32…" value={row.size} onChange={e=>updateVariantRow(row.id,"size",e.target.value)}/>
               <input aria-label="Couleur" placeholder="Ex. Bleu" value={row.color} onChange={e=>updateVariantRow(row.id,"color",e.target.value)}/>
-              <input aria-label="Quantité" type="number" required min="0" step="1" value={row.quantity} onChange={e=>updateVariantRow(row.id,"quantity",e.target.value)}/>
+              <input aria-label="Quantité" type="number" required min="0" step="1" placeholder="Ex. 5" value={row.quantity} onChange={e=>updateVariantRow(row.id,"quantity",e.target.value)}/>
               <button type="button" className="remove-variant" aria-label="Supprimer cette variante" title="Supprimer la variante" disabled={variantRows.length===1} onClick={()=>setVariantRows(rows=>rows.filter(r=>r.id!==row.id))}><Trash2 size={17}/></button>
             </div>)}
           </div>
