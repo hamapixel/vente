@@ -1,6 +1,5 @@
 //! Gestion locale des clients, dettes, acomptes et mise à jour du catalogue.
 //! Toutes les opérations financières sont transactionnelles et historisées.
-use chrono::Local;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -185,7 +184,7 @@ pub fn list_customer_payments(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i6
 #[derive(Serialize)]
 #[serde(rename_all="camelCase")]
 pub struct Settlement {
-    sale_id:i64, amount_received:i64, paid:i64, remaining:i64, reference:String
+    sale_id:i64, amount_received:i64, paid:i64, pub(crate) remaining:i64, reference:String
 }
 
 pub(crate) fn settle(conn:&mut Connection, sale_id:i64, amount:i64, method:&str, request_id:&str)
