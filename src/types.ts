@@ -36,6 +36,28 @@ export interface Shop {
   name: string;
   phone: string;
   address: string;
+  logoData: string;
+  receiptHeader: string;
+  receiptFooter: string;
+  receiptFormat: "ticket" | "a4";
+}
+export interface UserSession { username: string; role: "admin" | "vendeur"; }
+export interface AuthStatus { setupRequired: boolean; user: UserSession | null; }
+export interface ReceiptLine {
+  name: string;
+  variant: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+export interface ReceiptDocument {
+  reference: string;
+  createdAt: string;
+  paymentMethod: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+  lines: ReceiptLine[];
 }
 export interface Receipt {
   id: number;
