@@ -127,6 +127,36 @@ pub fn list_customers(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Vec<Cu
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
 }
 
+
+#[derive(Serialize)]
+#[serde(rename_all="camelCase")]
+pub struct CustomerSale {
+    id:i64, reference:String, created_at:String,total:i64,paid:i64,
+    remaining:i64,payment_method:String
+}
+#[tauri::command]
+pub fn list_customer_sales(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i64)
+  -> Result<Vec<CustomerSale>,String> {
+    require_auth(&auth)?;
+    let conn=db.0.lock().map_err(error)?;
+    let mut stmt=conn.prepare(
+        "SELECT s.id,s.reference,s.created_at,s.total,
+                COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0),
+                s.payment_method
+         FROM sales s JOIN sale_customers sc ON sc.sale_id=s.id
+         WHERE sc.customer_id=?1 ORDER BY s.id DESC"
+    ).map_err(error)?;
+    let rows=stmt.query_map(params![customer_id],|r|{
+        let total:i64=r.get(3)?;
+        let paid:i64=r.get(4)?;
+        Ok(CustomerSale {
+            id:r.get(0)?,reference:r.get(1)?,created_at:r.get(2)?,
+            total,paid,remaining:total-paid,payment_method:r.get(5)?
+        })
+    }).map_err(error)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
+}
+
 #[derive(Serialize)]
 #[serde(rename_all="camelCase")]
 pub struct PaymentEntry {
@@ -259,15 +289,12 @@ pub(crate) fn edit_product(conn:&mut Connection,input:ProductEdit)->Result<(),St
                 params![v.size.trim(),v.color.trim(),v.purchase_price,v.sale_price,id,input.product_id]
             ).map_err(error)?;
         } else {
-            let next:i64=tx.query_row(
-                "SELECT COALESCE(MAX(CAST(SUBSTR(sku, INSTR(sku, '-')+1) AS INTEGER)),0) FROM variants WHERE product_id=?1",
-                params![input.product_id],|r|r.get(0)
-            ).unwrap_or(0);
             let suffix:i64=tx.query_row(
-                "SELECT COUNT(*)+1 FROM variants WHERE product_id=?1",
+                "SELECT COALESCE(MAX(CAST(SUBSTR(sku, LENGTH('MS-' || ?1 || '-')+1) AS INTEGER)),0)+1
+                 FROM variants WHERE product_id=?1",
                 params![input.product_id],|r|r.get(0)
             ).map_err(error)?;
-            let sku=format!("MS-{}-{:03}",input.product_id,next.max(suffix));
+            let sku=format!("MS-{}-{:03}",input.product_id,suffix);
             let qty=v.initial_quantity.unwrap_or(0);
             tx.execute(
                 "INSERT INTO variants(product_id,size,color,sku,purchase_price,sale_price,quantity)
