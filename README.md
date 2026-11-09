@@ -12,9 +12,10 @@ Logiciel Windows de caisse et de suivi de stock pour les boutiques de vêtements
 Prérequis de développement : Node.js, Rust, Visual Studio C++ Build Tools, WebView2.
 
 1. npm install
-2. npm run tauri dev
-3. npm run build
-4. npm run tauri build
+2. npm run tauri icon public/brand.svg
+3. npm run tauri dev
+4. npm run build
+5. npm run tauri build
 
 Le programme d'installation NSIS est créé dans src-tauri/target/release/bundle/nsis/ après compilation. La création de cet installateur exige un poste Windows configuré pour compiler Tauri.
 
