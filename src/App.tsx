@@ -2,14 +2,15 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormE
 import {
   Activity, ArrowLeft, ArrowRight, BadgeCheck, BarChart3,
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
-  Download, FileText, LayoutDashboard, LogOut, Minus, MoreHorizontal, Package, Printer,
+  Download, FileText, Footprints, LayoutDashboard, LogOut, Minus, MoreHorizontal, Package, Printer,
   PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart,
   TrendingUp, Trash2, Wallet, X
 } from "lucide-react";
 import { api } from "./api";
+import { matchesProduct, matchesVariant } from "./search";
 import LoginScreen from "./LoginScreen";
 import ReceiptView from "./ReceiptView";
-import type { CartLine, Dashboard, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
+import type { CartLine, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
 
 type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "reports" | "settings";
 type ProductGroup = { id: number; name: string; category: string; variants: Variant[] };
@@ -53,6 +54,7 @@ export default function App() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [setupRequired, setSetupRequired] = useState(false);
+  const [loginBrand, setLoginBrand] = useState<LoginBrand>({ name: "Ma boutique", logoData: "" });
   const [ticketView, setTicketView] = useState<ReceiptDocument | null>(null);
   const [catalog, setCatalog] = useState<Variant[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard>(blankDashboard);
@@ -89,6 +91,9 @@ export default function App() {
   const loadReport = useCallback(async () => setReport(await api.getReport(from, to)), [from, to]);
   useEffect(() => {
     if (isBrowserPreview) { setAuthReady(true); return; }
+    void api.getLoginBrand().then(setLoginBrand).catch(() => {
+      // Conserver le logo ModeStock si aucune identité de boutique n'est disponible.
+    });
     void api.authStatus().then(status => {
       setSetupRequired(status.setupRequired);
       setSession(status.user);
@@ -108,6 +113,8 @@ export default function App() {
     if (target === page) return;
     setNavHistory(history => [...history.slice(-14), page]);
     setPage(target);
+    setQuery("");
+    setCategory("Tous");
   }
   function goBack() {
     if (!navHistory.length) return;
@@ -154,9 +161,8 @@ export default function App() {
     return Array.from(map.values());
   }, [catalog]);
   const filtered = products.filter(p =>
-    (category === "Tous" || p.category === category) &&
-    (p.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()) ||
-      p.variants.some(v => v.sku.toLocaleLowerCase().includes(query.toLocaleLowerCase()))));
+    (category === "Tous" || p.category === category) && matchesProduct(p, query));
+  const filteredVariants = catalog.filter(v => matchesVariant(v, query));
   const selected = products.find(p => p.id === selectedId);
   const subtotal = cart.reduce((sum, item) => sum + (catalog.find(v => v.id === item.variantId)?.salePrice || 0) * item.quantity, 0);
   const total = Math.max(0, subtotal - discount);
@@ -279,7 +285,7 @@ export default function App() {
   </tbody></table></div>;
 
   if (!authReady) return <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Initialisation de ModeStock Local…</strong></div>;
-  if (!session) return <LoginScreen setup={setupRequired} browserPreview={isBrowserPreview} onSuccess={user => { setSetupRequired(false); setSession(user); }}/>;
+  if (!session) return <LoginScreen setup={setupRequired} browserPreview={isBrowserPreview} brand={loginBrand} onSuccess={user => { setSetupRequired(false); setSession(user); }}/>;
   return <>
   <div className="shell">
     <aside className="sidebar">
@@ -322,8 +328,8 @@ export default function App() {
         {page === "pos" && <>
           <div className="page-heading"><div><div className="eyebrow">POINT DE VENTE</div><h1>Caisse & ventes</h1><p>Sélectionnez des articles, leurs tailles et couleurs, puis encaissez.</p></div><span className="count-chip"><ShoppingCart size={17}/> {cart.reduce((a,b) => a+b.quantity,0)} article(s)</span></div>
           <div className="pos-layout">
-            <div className="pos-catalog"><div className="catalog-toolbar"><div className="search-field"><Search size={18}/><input placeholder="Rechercher un vêtement ou une référence…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="select-wrap"><select value={category} onChange={e => setCategory(e.target.value)}><option>Tous</option>{categories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div>
-              {filtered.length ? <div className="product-grid">{filtered.map(p => <button className="product-card" key={p.id} onClick={() => setSelectedId(p.id)}><div className="product-picture"><Shirt size={38} strokeWidth={1.3}/><span className="product-badge">{p.variants.reduce((a,v) => a+v.quantity,0)} en stock</span></div><div className="product-body"><span className="product-category">{p.category}</span><strong>{p.name}</strong><div className="product-foot"><span>{money(Math.min(...p.variants.map(v => v.salePrice)))}</span><span className="add-circle"><Plus size={17}/></span></div></div></button>)}</div> : <Empty title={products.length ? "Aucun résultat" : "Votre catalogue est vide"} description={products.length ? "Essayez une autre recherche." : "Ajoutez d'abord des vêtements dans l'onglet Catalogue."} icon={Shirt}/>}
+            <div className="pos-catalog"><div className="catalog-toolbar"><div className="search-field"><Search size={18}/><input placeholder="Maillot, chaussure, pointure 42, couleur, référence…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="select-wrap"><select value={category} onChange={e => setCategory(e.target.value)}><option>Tous</option>{categories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div>
+              {filtered.length ? <div className="product-grid">{filtered.map(p => <button className="product-card" key={p.id} onClick={() => setSelectedId(p.id)}><div className="product-picture">{p.category === "Chaussures" ? <Footprints size={38} strokeWidth={1.3}/> : <Shirt size={38} strokeWidth={1.3}/>}<span className="product-badge">{p.variants.reduce((a,v) => a+v.quantity,0)} en stock</span></div><div className="product-body"><span className="product-category">{p.category}</span><strong>{p.name}</strong><div className="product-foot"><span>{money(Math.min(...p.variants.map(v => v.salePrice)))}</span><span className="add-circle"><Plus size={17}/></span></div></div></button>)}</div> : <Empty title={products.length ? "Aucun résultat" : "Votre catalogue est vide"} description={products.length ? "Essayez une autre recherche." : "Ajoutez d'abord des vêtements dans l'onglet Catalogue."} icon={Shirt}/>}
             </div>
             <aside className="cart-panel"><div className="cart-header"><div><h2>Panier actuel</h2><p>{cart.length} ligne(s) dans cette vente</p></div><span className="cart-icon"><ShoppingCart size={21}/></span></div>
               <div className="cart-lines">{cart.length ? cart.map(c => {const v=catalog.find(v=>v.id===c.variantId); if (!v) return null; return <div className="cart-line" key={c.variantId}><div className="cart-mini"><Shirt size={18}/></div><div className="cart-line-main"><strong>{v.name}</strong><small>{v.size} · {v.color}</small><div className="quantity-control"><button aria-label="Diminuer" onClick={() => changeQuantity(c.variantId,-1)}><Minus size={13}/></button><span>{c.quantity}</span><button aria-label="Augmenter" onClick={() => changeQuantity(c.variantId,1)}><Plus size={13}/></button></div></div><strong className="line-price">{money(v.salePrice*c.quantity)}</strong></div>; }) : <div className="cart-empty"><ShoppingBag size={35}/><strong>Votre panier est vide</strong><span>Choisissez un produit pour commencer.</span></div>}</div>
@@ -334,8 +340,9 @@ export default function App() {
 
         {page === "products" && <>
           <div className="page-heading"><div><div className="eyebrow">VOTRE CATALOGUE</div><h1>Produits & variantes</h1><p>Un même vêtement peut être disponible en plusieurs tailles et couleurs.</p></div><button className="primary-btn" onClick={()=>setAddModal(true)}><Plus size={18}/> Ajouter un produit</button></div>
-          <section className="panel"><div className="section-heading"><div><h2>Tous les vêtements</h2><p>{products.length} produit(s), {catalog.length} variante(s)</p></div><span className="soft-label"><PackageCheck size={15}/> Stock local</span></div>
-            {catalog.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th></tr></thead><tbody>{catalog.map(v=><tr key={v.id}><td className="strong-cell">{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td></tr>)}</tbody></table></div> : <Empty title="Votre boutique prend forme ici" description="Ajoutez votre premier produit avec ses tailles, couleurs et prix." icon={Shirt}/>}
+          <section className="panel"><div className="section-heading"><div><h2>Vêtements et chaussures</h2><p>{products.length} produit(s), {catalog.length} variante(s)</p></div><span className="soft-label"><PackageCheck size={15}/> Stock local</span></div>
+            <div className="catalog-toolbar compact-toolbar"><div className="search-field"><Search size={18}/><input aria-label="Rechercher dans le catalogue" placeholder="Rechercher nom, chaussure, taille, couleur, référence…" value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={()=>setQuery("")}><X size={15}/></button>}</div><span className="search-count">{filteredVariants.length} résultat(s)</span></div>
+            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="strong-cell">{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun produit correspondant" : "Votre boutique prend forme ici"} description={catalog.length ? "Essayez une taille, une couleur ou une autre référence." : "Ajoutez votre premier produit avec ses tailles, couleurs et prix."} icon={Shirt}/>}
           </section>
         </>}
 
@@ -343,7 +350,8 @@ export default function App() {
           <div className="page-heading"><div><div className="eyebrow">INVENTAIRE</div><h1>Gestion du stock</h1><p>Suivez les quantités disponibles pour chaque taille et couleur.</p></div><span className="count-chip"><Package size={17}/> {itemsInStock} pièces</span></div>
           <div className="stats-grid two"><Stat title="Pièces disponibles" value={String(itemsInStock)} hint="Toutes variantes confondues" icon={PackageCheck} variant="blue"/><Stat title="Stock faible ou épuisé" value={String(dashboard.lowStock)} hint="Variantes de 3 pièces ou moins" icon={CircleAlert} variant="orange"/></div>
           <section className="panel"><div className="section-heading"><div><h2>État des stocks</h2><p>Les corrections sont enregistrées dans l'historique SQLite.</p></div></div>
-            {catalog.length ? <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Article</th><th>Variante</th><th>Stock</th><th>Action</th></tr></thead><tbody>{catalog.map(v=><tr key={v.id}><td className="muted-cell">{v.sku}</td><td className="strong-cell">{v.name}</td><td>{v.size} / {v.color}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>{setStockVariant(v);setStockDelta("1");setStockReason("Réapprovisionnement");}}>Ajuster <ArrowRight size={15}/></button></td></tr>)}</tbody></table></div> : <Empty title="Aucun stock à afficher" description="Créez vos premiers produits pour commencer le suivi."/>}
+            <div className="catalog-toolbar compact-toolbar"><div className="search-field"><Search size={18}/><input aria-label="Rechercher dans le stock" placeholder="Rechercher un article, une pointure, une couleur…" value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={()=>setQuery("")}><X size={15}/></button>}</div><span className="search-count">{filteredVariants.length} résultat(s)</span></div>
+            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Article</th><th>Variante</th><th>Stock</th><th>Action</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="muted-cell">{v.sku}</td><td className="strong-cell">{v.name}</td><td>{v.size} / {v.color}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>{setStockVariant(v);setStockDelta("1");setStockReason("Réapprovisionnement");}}>Ajuster <ArrowRight size={15}/></button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun résultat" : "Aucun stock à afficher"} description={catalog.length ? "Essayez un autre terme de recherche." : "Créez vos premiers produits pour commencer le suivi."}/>}
           </section>
         </>}
 
@@ -405,7 +413,7 @@ export default function App() {
             <span className="variants-count">{variantRows.length} variante{variantRows.length>1?"s":""}</span>
           </div>
           <datalist id="size-options">
-            {["Unique","XS","S","M","L","XL","XXL","3XL","4XL","28","30","32","34","36","38","40","42","44"].map(size=><option value={size} key={size}/>)}
+            {["Unique","XS","S","M","L","XL","XXL","3XL","4XL","28","30","32","34","35","36","37","38","39","40","41","42","43","44","45","46"].map(size=><option value={size} key={size}/>)}
           </datalist>
           <div className="variant-grid-head" aria-hidden="true"><span>Taille</span><span>Couleur</span><span>Quantité</span><span></span></div>
           <div className="variant-editor-list">
