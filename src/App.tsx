@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  Activity, ArrowDownRight, ArrowLeft, ArrowRight, BadgeCheck, BarChart3,
+  Activity, ArrowRight, BadgeCheck, BarChart3,
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
   Download, FileText, LayoutDashboard, Minus, MoreHorizontal, Package,
   PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart,
