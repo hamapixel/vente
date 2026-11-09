@@ -24,7 +24,8 @@ export function matchesVariant(variant: Variant, query: string): boolean {
   if (!words.length) return true;
   const data = normalizeSearch([
     variant.name, variant.category, searchableCategory(variant.category),
-    variant.sku, variant.size, variant.color
+    variant.sku, variant.size, variant.color,
+    "taille " + variant.size, "pointure " + variant.size
   ].join(" "));
   return words.every(word => data.includes(word));
 }
@@ -40,7 +41,10 @@ export function matchesProduct(product: ProductWithVariants, query: string): boo
   if (!words.length) return true;
   const data = normalizeSearch([
     product.name, product.category, searchableCategory(product.category),
-    ...product.variants.flatMap(variant => [variant.sku, variant.size, variant.color])
+    ...product.variants.flatMap(variant => [
+      variant.sku, variant.size, variant.color,
+      "taille " + variant.size, "pointure " + variant.size
+    ])
   ].join(" "));
   return words.every(word => data.includes(word));
 }
