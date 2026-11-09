@@ -19,6 +19,14 @@ Prérequis de développement : Node.js, Rust, Visual Studio C++ Build Tools, Web
 
 Le programme d'installation NSIS est créé dans src-tauri/target/release/bundle/nsis/ après compilation. La création de cet installateur exige un poste Windows configuré pour compiler Tauri.
 
+## Première connexion et personnalisation
+
+Au premier lancement, ModeStock demande de **créer un compte administrateur local** avec un mot de passe de 8 caractères minimum. Les secrets sont hachés avec Argon2 dans SQLite ; ils ne sont pas envoyés sur Internet. Il n'existe pas encore de récupération automatique de mot de passe : prévoir une procédure de secours vérifiée avant distribution.
+
+Dans **Paramètres → Profil et documents**, saisir le nom, l'adresse, le téléphone, importer un logo PNG/JPG/WebP (450 Ko maximum), définir l'en-tête et le pied de ticket et sélectionner un format Ticket 80 mm ou A4. Pour visualiser une vente déjà effectuée, utiliser le bouton **Ticket** dans l'historique. L'impression utilise la boîte de dialogue Windows (`window.print()`) et doit être testée avec les imprimantes effectivement utilisées.
+
+Les paramètres sont conservés dans une nouvelle table SQLite (`shop_branding`) sans recréer les ventes préexistantes.
+
 ## Fonctionnalités du premier socle
 - Catalogue avec variantes de taille et de couleur.
 - Ajustement de stock historisé.
@@ -29,6 +37,6 @@ Le programme d'installation NSIS est créé dans src-tauri/target/release/bundle
 - Sauvegarde locale SQLite à la demande via VACUUM INTO.
 
 ## Important avant commercialisation
-Cette branche constitue une première version de développement, **pas un logiciel validé en production**. Restent notamment à finaliser : impression de reçus, retours et annulations, gestion des comptes et permissions, export externe et restauration testée, vérification des calculs et tests sur de vrais ordinateurs Windows. La sauvegarde locale ne protège pas contre la panne totale du disque : exporter les copies sur un support séparé est indispensable.
+Cette branche constitue une première version de développement, **pas un logiciel validé en production**. Restent notamment à finaliser : validation sur imprimantes thermiques et documents A4, retours et annulations, comptes vendeur et gestion complète des permissions, export externe et restauration testée, vérification des calculs et tests sur de vrais ordinateurs Windows. La sauvegarde locale ne protège pas contre la panne totale du disque : exporter les copies sur un support séparé est indispensable.
 
 Données propres à chaque installation. Aucune télémétrie ni requête réseau prévue dans l'application.
