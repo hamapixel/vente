@@ -1,4 +1,4 @@
-# ModeStock Local
+# VestiFlow
 
 Logiciel Windows de caisse et de suivi de stock pour les boutiques de vêtements au Mali. Application locale, sans Internet ni serveur.
 
@@ -21,7 +21,7 @@ Le programme d'installation NSIS est créé dans src-tauri/target/release/bundle
 
 ## Première connexion et personnalisation
 
-Au premier lancement, ModeStock demande de **créer un compte administrateur local** avec un mot de passe de 8 caractères minimum. Les secrets sont hachés avec Argon2 dans SQLite ; ils ne sont pas envoyés sur Internet. Il n'existe pas encore de récupération automatique de mot de passe : prévoir une procédure de secours vérifiée avant distribution.
+Au premier lancement, VestiFlow demande de **créer un compte administrateur local** avec un mot de passe de 8 caractères minimum. Les secrets sont hachés avec Argon2 dans SQLite ; ils ne sont pas envoyés sur Internet. Il n'existe pas encore de récupération automatique de mot de passe : prévoir une procédure de secours vérifiée avant distribution.
 
 Dans **Paramètres → Profil et documents**, saisir le nom, l'adresse, le téléphone, importer un logo PNG/JPG/WebP (450 Ko maximum), définir l'en-tête et le pied de ticket et sélectionner un format Ticket 80 mm ou A4. Pour visualiser une vente déjà effectuée, utiliser le bouton **Ticket** dans l'historique. L'impression utilise la boîte de dialogue Windows (`window.print()`) et doit être testée avec les imprimantes effectivement utilisées.
 
@@ -41,7 +41,7 @@ Cette branche constitue une première version de développement, **pas un logici
 
 Données propres à chaque installation. Aucune télémétrie ni requête réseau prévue dans l'application.
 
-## Installer ModeStock chez un commerçant
+## Installer VestiFlow chez un commerçant
 
 - [Guide installation USB et risques de sécurité](docs/INSTALLATION_CLIENT.md)
 - [Recette de validation fonctionnelle et sécurité](docs/RECETTE_SECURITE.md)
@@ -62,3 +62,9 @@ Les sommes sont distinguées : **montant de vente** (la valeur des articles vend
 **Migration** : au premier lancement de cette version, les anciennes ventes sauvegardées comme payées comptant reçoivent un règlement historique complet. La migration est enregistrée pour ne pas transformer de nouvelles ventes à crédit en ventes payées lors du redémarrage. Aucun ancien produit ou client n'est volontairement supprimé.
 
 **Important** : l'interface et les fonctionnalités restent en phase de validation. Les retours et annulations, la restauration externe vérifiée, la signature de l'installateur et la recette sur de vraies imprimantes sont encore nécessaires avant de vendre le logiciel.
+
+## Passage de ModeStock Local à VestiFlow 0.2.0
+
+Le **nom commercial** et l'installateur sont maintenant « VestiFlow » (sans « Local »). L'identifiant technique **ml.modestock.local** et le fichier **modestock.db** sont préservés : une installation sous **le même compte Windows** peut retrouver les données déjà présentes. En raison du changement de `productName`, la version 0.2 peut s'installer à côté de ModeStock Local 0.1.0 ; **ne désinstallez pas l'ancienne version avant vérification**. Ne pas utiliser les deux applications simultanément. Le guide de migration est dans [docs/MISE_A_JOUR_VESTIFLOW.md](docs/MISE_A_JOUR_VESTIFLOW.md).
+
+L'interface est adaptative pour les ordinateurs portables de petite taille et le login a été compacté. Les panneaux de navigation restent fixes ; les tableaux peuvent défiler dans leur propre cadre sans imposer un défilement horizontal à toute la fenêtre.
