@@ -40,3 +40,11 @@ Les paramètres sont conservés dans une nouvelle table SQLite (`shop_branding`)
 Cette branche constitue une première version de développement, **pas un logiciel validé en production**. Restent notamment à finaliser : validation sur imprimantes thermiques et documents A4, retours et annulations, comptes vendeur et gestion complète des permissions, export externe et restauration testée, vérification des calculs et tests sur de vrais ordinateurs Windows. La sauvegarde locale ne protège pas contre la panne totale du disque : exporter les copies sur un support séparé est indispensable.
 
 Données propres à chaque installation. Aucune télémétrie ni requête réseau prévue dans l'application.
+
+## Installer ModeStock chez un commerçant
+
+- [Guide installation USB et risques de sécurité](docs/INSTALLATION_CLIENT.md)
+- [Recette de validation fonctionnelle et sécurité](docs/RECETTE_SECURITE.md)
+- Pour construire l'installateur sur **votre poste de développement** : exécuter le script PowerShell scripts/build-installer.ps1 après validation du projet.
+
+La dernière version du code n'est **pas encore approuvée pour les ventes de clients réels**. La base SQLite n'est pas chiffrée au repos et l'export/restauration hors disque reste à finaliser.
