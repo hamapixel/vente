@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AuthStatus, CartLine, Dashboard, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
+import type { AuthStatus, CartLine, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
 
 // Dans un onglet navigateur ordinaire, l'API Tauri/SQLite n'est pas disponible.
 function desktopInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -13,6 +13,7 @@ function desktopInvoke<T>(command: string, args?: Record<string, unknown>): Prom
 
 export const api = {
   authStatus: () => desktopInvoke<AuthStatus>("auth_status"),
+  getLoginBrand: () => desktopInvoke<LoginBrand>("get_login_brand"),
   registerAdmin: (username: string, password: string) => desktopInvoke<UserSession>("register_admin", { username, password }),
   login: (username: string, password: string) => desktopInvoke<UserSession>("login", { username, password }),
   logout: () => desktopInvoke<void>("logout"),
