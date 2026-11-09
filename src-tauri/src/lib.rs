@@ -1,3 +1,4 @@
+mod commerce;
 use chrono::Local;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::{rand_core::OsRng, SaltString}};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -355,6 +356,8 @@ struct CheckoutInput {
     items: Vec<CartItem>,
     discount: i64,
     payment_method: String,
+    customer_id: Option<i64>,
+    payment_received: Option<i64>,
 }
 
 #[derive(Serialize)]
@@ -365,6 +368,8 @@ struct Receipt {
     total: i64,
     total_cost: i64,
     created_at: String,
+    paid: i64,
+    remaining: i64,
 }
 
 #[tauri::command]
@@ -380,12 +385,18 @@ fn checkout(db: State<'_, Db>, auth: State<'_, Auth>, input: CheckoutInput) -> R
     let tx = conn.transaction().map_err(error)?;
     let existing = tx.query_row(
         "SELECT id,reference,total,total_cost,created_at FROM sales WHERE request_id=?1",
-        params![input.request_id], |r| Ok(Receipt {
-            id:r.get(0)?,reference:r.get(1)?,total:r.get(2)?,
-            total_cost:r.get(3)?,created_at:r.get(4)?
-        })
+        params![input.request_id], |r| Ok((
+            r.get::<_,i64>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,
+            r.get::<_,i64>(3)?,r.get::<_,String>(4)?
+        ))
     ).optional().map_err(error)?;
-    if let Some(saved) = existing { return Ok(saved); }
+    if let Some((id,reference,total,total_cost,created_at)) = existing {
+        let paid:i64=tx.query_row(
+            "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE sale_id=?1",
+            params![id],|r|r.get(0)
+        ).map_err(error)?;
+        return Ok(Receipt{id,reference,total,total_cost,created_at,paid,remaining:total-paid});
+    }
 
     let mut quantities: BTreeMap<i64,i64> = BTreeMap::new();
     for item in input.items {
@@ -413,6 +424,20 @@ fn checkout(db: State<'_, Db>, auth: State<'_, Auth>, input: CheckoutInput) -> R
     }
     if input.discount < 0 || input.discount > subtotal { return Err("Remise invalide.".into()); }
     let total = subtotal - input.discount;
+    let received = input.payment_received.unwrap_or(total);
+    if received<0 || received>total {
+        return Err("Le paiement doit être compris entre zéro et le montant de la vente.".into());
+    }
+    if received<total && input.customer_id.is_none() {
+        return Err("Sélectionnez un client pour une vente à crédit ou avec acompte.".into());
+    }
+    if let Some(customer_id)=input.customer_id {
+        let exists:bool=tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM customers WHERE id=?1)",
+            params![customer_id],|r|r.get(0)
+        ).map_err(error)?;
+        if !exists { return Err("Client introuvable.".into()); }
+    }
     let created_at = now();
     tx.execute(
         "INSERT INTO sales (reference,request_id,subtotal,discount,total,total_cost,payment_method,created_at)
@@ -420,6 +445,16 @@ fn checkout(db: State<'_, Db>, auth: State<'_, Auth>, input: CheckoutInput) -> R
         params!["TMP",input.request_id,subtotal,input.discount,total,total_cost,input.payment_method,created_at]
     ).map_err(error)?;
     let sale_id = tx.last_insert_rowid();
+    if let Some(customer_id)=input.customer_id {
+        tx.execute("INSERT INTO sale_customers(sale_id,customer_id) VALUES (?1,?2)",
+            params![sale_id,customer_id]).map_err(error)?;
+    }
+    if received>0 {
+        tx.execute(
+            "INSERT INTO sale_payments(sale_id,request_id,amount,method,created_at) VALUES (?1,?2,?3,?4,?5)",
+            params![sale_id,format!("initial-{}",input.request_id),received,input.payment_method,created_at]
+        ).map_err(error)?;
+    }
     let reference = format!("VT-{}-{:05}", Local::now().format("%Y%m%d"),sale_id);
     tx.execute("UPDATE sales SET reference=?1 WHERE id=?2",params![reference,sale_id]).map_err(error)?;
     for (variant_id, quantity, name, label, unit_price, unit_cost, line_total) in lines {
@@ -436,7 +471,7 @@ fn checkout(db: State<'_, Db>, auth: State<'_, Auth>, input: CheckoutInput) -> R
         ).map_err(error)?;
     }
     tx.commit().map_err(error)?;
-    Ok(Receipt {id:sale_id,reference,total,total_cost,created_at})
+    Ok(Receipt {id:sale_id,reference,total,total_cost,created_at,paid:received,remaining:total-received})
 }
 
 #[derive(Serialize)]
@@ -444,6 +479,7 @@ fn checkout(db: State<'_, Db>, auth: State<'_, Auth>, input: CheckoutInput) -> R
 struct Dashboard {
     sales_total: i64, gross_profit: i64, expenses: i64,
     sales_count: i64, low_stock: i64, variant_count: i64,
+    collected_today: i64, outstanding: i64,
 }
 
 #[tauri::command]
@@ -463,7 +499,15 @@ fn get_dashboard(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Dashboard,S
         "SELECT COALESCE(SUM(CASE WHEN quantity<=3 THEN 1 ELSE 0 END),0),COUNT(*) FROM variants",
         [],|r|Ok((r.get(0)?,r.get(1)?))
     ).map_err(error)?;
-    Ok(Dashboard {sales_total,gross_profit,expenses,sales_count,low_stock,variant_count})
+    let collected_today:i64=conn.query_row(
+        "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE substr(created_at,1,10)=?1",
+        params![today()],|r|r.get(0)
+    ).map_err(error)?;
+    let outstanding:i64=conn.query_row(
+        "SELECT COALESCE(SUM(s.total-COALESCE((SELECT SUM(p.amount) FROM sale_payments p WHERE p.sale_id=s.id),0)),0)
+         FROM sales s",[],|r|r.get(0)
+    ).map_err(error)?;
+    Ok(Dashboard {sales_total,gross_profit,expenses,sales_count,low_stock,variant_count,collected_today,outstanding})
 }
 
 #[derive(Serialize)]
@@ -471,6 +515,7 @@ fn get_dashboard(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Dashboard,S
 struct Sale {
     id: i64, reference: String, total: i64, total_cost: i64,
     payment_method: String, created_at: String,
+    paid: i64, remaining: i64, customer_id: Option<i64>, customer_name: Option<String>,
 }
 
 #[tauri::command]
@@ -478,11 +523,19 @@ fn get_sales(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Vec<Sale>,Strin
     require_auth(&auth)?;
     let conn = db.0.lock().map_err(error)?;
     let mut stmt = conn.prepare(
-        "SELECT id,reference,total,total_cost,payment_method,created_at FROM sales ORDER BY id DESC LIMIT 100"
+        "SELECT s.id,s.reference,s.total,s.total_cost,s.payment_method,s.created_at,
+            COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0),
+            sc.customer_id,c.name
+         FROM sales s
+         LEFT JOIN sale_customers sc ON sc.sale_id=s.id
+         LEFT JOIN customers c ON c.id=sc.customer_id
+         ORDER BY s.id DESC LIMIT 1000"
     ).map_err(error)?;
     let rows=stmt.query_map([],|r|Ok(Sale {
         id:r.get(0)?,reference:r.get(1)?,total:r.get(2)?,
-        total_cost:r.get(3)?,payment_method:r.get(4)?,created_at:r.get(5)?
+        total_cost:r.get(3)?,payment_method:r.get(4)?,created_at:r.get(5)?,
+        paid:r.get(6)?,remaining:r.get::<_,i64>(2)?-r.get::<_,i64>(6)?,
+        customer_id:r.get(7)?,customer_name:r.get(8)?
     })).map_err(error)?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
 }
@@ -601,6 +654,9 @@ struct ReceiptDocument {
     subtotal: i64,
     discount: i64,
     total: i64,
+    paid: i64,
+    remaining: i64,
+    customer_name: Option<String>,
     lines: Vec<ReceiptLine>,
 }
 #[tauri::command]
@@ -621,7 +677,16 @@ fn get_receipt(db: State<'_, Db>, auth: State<'_, Auth>, sale_id: i64) -> Result
         name:r.get(0)?,variant:r.get(1)?,quantity:r.get(2)?,
         unit_price:r.get(3)?,line_total:r.get(4)?
     })).map_err(error)?.collect::<rusqlite::Result<Vec<_>>>().map_err(error)?;
-    Ok(ReceiptDocument{reference,created_at,payment_method,subtotal,discount,total,lines})
+    let paid:i64=conn.query_row(
+        "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE sale_id=?1",
+        params![sale_id],|r|r.get(0)
+    ).map_err(error)?;
+    let customer_name:Option<String>=conn.query_row(
+        "SELECT c.name FROM customers c JOIN sale_customers sc ON sc.customer_id=c.id
+         WHERE sc.sale_id=?1",params![sale_id],|r|r.get(0)
+    ).optional().map_err(error)?;
+    Ok(ReceiptDocument{reference,created_at,payment_method,subtotal,discount,total,
+        paid,remaining:total-paid,customer_name,lines})
 }
 
 #[tauri::command]
@@ -640,9 +705,10 @@ pub fn run() {
         .setup(|app| {
             let directory=app.path().app_local_data_dir()?;
             fs::create_dir_all(&directory)?;
-            let conn=Connection::open(directory.join("modestock.db"))?;
+            let mut conn=Connection::open(directory.join("modestock.db"))?;
             conn.busy_timeout(Duration::from_secs(5))?;
             init_db(&conn)?;
+            commerce::migrate(&mut conn)?;
             app.manage(Db(Mutex::new(conn)));
             app.manage(Auth(Mutex::new(None)));
             app.manage(LoginGuard(Mutex::new(FailedLogin::default())));
@@ -652,7 +718,11 @@ pub fn run() {
             get_catalog,create_product,adjust_stock,checkout,
             get_dashboard,get_sales,get_report,add_expense,
             get_shop,update_shop,backup_now,get_receipt,
-            auth_status,get_login_brand,register_admin,login,logout
+            auth_status,get_login_brand,register_admin,login,logout,
+            commerce::create_customer,commerce::update_customer,
+            commerce::list_customers,commerce::list_customer_payments,
+            commerce::record_payment,commerce::update_product,
+            commerce::product_history
         ])
         .run(tauri::generate_context!())
         .expect("Erreur de lancement de ModeStock Local");
