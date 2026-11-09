@@ -244,3 +244,25 @@
 .read-only-stock{height:39px;background:#edf2f7;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#6d8199;font-size:12px}
 @media(max-width:1360px){.clients-layout{grid-template-columns:1fr}.customer-summary-grid{gap:10px}}
 @media(max-width:1120px){.product-insight-grid{grid-template-columns:repeat(2,1fr)}.edit-product-row{grid-template-columns:repeat(3,1fr)}.customer-summary-grid{grid-template-columns:repeat(2,1fr)}}
+
+
+/* Sélecteur de client instantané : ouvrir la liste vers le haut dans la caisse,
+   sans être coupé par le panneau (qui était auparavant overflow:hidden). */
+.cart-panel{overflow:visible;z-index:3}
+.cart-summary{border-radius:0 0 15px 15px}
+.customer-search-picker{position:relative;flex:1;min-width:0}
+.customer-search-input{height:42px;display:flex;align-items:center;gap:8px;border:1px solid #dfe8f3;background:#fff;border-radius:9px;padding:0 7px 0 11px;color:#7295b6;transition:border-color .15s,box-shadow .15s}
+.customer-search-input.focused,.customer-search-input:focus-within{border-color:#72a6e8;box-shadow:0 0 0 3px #4b8dd11a}
+.customer-search-input input{min-width:0;flex:1;width:100%;height:40px;padding:0;border:0;background:transparent;outline:0;color:#334967;font-size:11px}
+.customer-search-input input::placeholder{color:#94a5b9}
+.customer-search-toggle,.customer-search-clear{display:grid;place-items:center;flex-shrink:0;width:24px;height:27px;border:0;background:transparent;color:#7894b3;border-radius:6px}
+.customer-search-toggle:hover,.customer-search-clear:hover{background:#eff5ff;color:#2f76bd}
+.customer-search-results{position:absolute;bottom:calc(100% + 8px);left:0;right:0;max-height:270px;overflow-y:auto;overscroll-behavior:contain;background:white;border:1px solid #d9e5f3;border-radius:11px;box-shadow:0 15px 38px #132c4f26;z-index:25;padding:5px}
+.customer-search-option{display:flex;gap:9px;align-items:center;width:100%;min-width:0;background:white;border:0;text-align:left;border-radius:8px;padding:9px 7px;color:#3a5876}
+.customer-search-option.active,.customer-search-option:hover{background:#edf5ff}
+.customer-search-avatar{flex-shrink:0;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#e6f0ff;color:#3d7bbf;font-size:11px;font-weight:800}
+.customer-search-option-body{flex:1;min-width:0}
+.customer-search-option-body strong{display:block;font-size:11px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#28405e}
+.customer-search-option-body small{display:block;font-size:10px;line-height:1.5;color:#91a0b4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.customer-search-debt{font-size:9.5px;color:#c27d48;font-weight:800;flex-shrink:0}
+.customer-search-empty,.customer-search-help{padding:10px 9px;margin:0;font-size:11px;line-height:1.6;color:#8195ad}
