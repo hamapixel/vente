@@ -1,10 +1,83 @@
 use chrono::Local;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::{rand_core::OsRng, SaltString}};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, sync::Mutex, time::Duration};
 use tauri::{Manager, State};
 
 struct Db(Mutex<Connection>);
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionInfo { username: String, role: String }
+struct Auth(Mutex<Option<SessionInfo>>);
+
+fn require_auth(auth: &State<'_, Auth>) -> Result<SessionInfo, String> {
+    auth.0.lock().map_err(error)?.clone().ok_or("Connexion requise.".to_string())
+}
+fn require_admin(auth: &State<'_, Auth>) -> Result<(), String> {
+    if require_auth(auth)?.role != "admin" { return Err("Accès réservé à l'administrateur.".into()); }
+    Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthStatus {
+    setup_required: bool,
+    user: Option<SessionInfo>,
+}
+
+#[tauri::command]
+fn auth_status(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<AuthStatus,String> {
+    let conn=db.0.lock().map_err(error)?;
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM users",[],|r|r.get(0)).map_err(error)?;
+    let user=auth.0.lock().map_err(error)?.clone();
+    Ok(AuthStatus{setup_required:count==0,user})
+}
+
+#[tauri::command]
+fn register_admin(db: State<'_, Db>, auth: State<'_, Auth>, username: String, password: String) -> Result<SessionInfo,String> {
+    let login=username.trim();
+    if login.len()<3 || login.len()>50 || !login.chars().all(|c|c.is_alphanumeric() || c=='_' || c=='-' || c=='.') {
+        return Err("Identifiant invalide (3 à 50 caractères, lettres, chiffres, . _ -).".into());
+    }
+    if password.chars().count()<8 || password.chars().count()>128 {
+        return Err("Choisissez un mot de passe de 8 à 128 caractères.".into());
+    }
+    let mut conn=db.0.lock().map_err(error)?;
+    let tx=conn.transaction().map_err(error)?;
+    let count: i64=tx.query_row("SELECT COUNT(*) FROM users",[],|r|r.get(0)).map_err(error)?;
+    if count!=0 { return Err("Un administrateur existe déjà. Connectez-vous.".into()); }
+    let salt=SaltString::generate(&mut OsRng);
+    let hash=Argon2::default().hash_password(password.as_bytes(),&salt).map_err(error)?.to_string();
+    tx.execute("INSERT INTO users (username,password_hash,role) VALUES (?1,?2,'admin')",params![login,hash]).map_err(error)?;
+    tx.commit().map_err(error)?;
+    let session=SessionInfo{username:login.to_string(),role:"admin".into()};
+    *auth.0.lock().map_err(error)?=Some(session.clone());
+    Ok(session)
+}
+
+#[tauri::command]
+fn login(db: State<'_, Db>, auth: State<'_, Auth>, username: String, password: String) -> Result<SessionInfo,String> {
+    let conn=db.0.lock().map_err(error)?;
+    let row=conn.query_row("SELECT username,password_hash,role FROM users WHERE username=?1 COLLATE NOCASE",
+        params![username.trim()],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?))
+    ).optional().map_err(error)?;
+    let (name,hash,role)=row.ok_or("Identifiant ou mot de passe incorrect.")?;
+    let parsed=PasswordHash::new(&hash).map_err(error)?;
+    if Argon2::default().verify_password(password.as_bytes(),&parsed).is_err() {
+        return Err("Identifiant ou mot de passe incorrect.".into());
+    }
+    let session=SessionInfo{username:name,role};
+    *auth.0.lock().map_err(error)?=Some(session.clone());
+    Ok(session)
+}
+
+#[tauri::command]
+fn logout(auth: State<'_, Auth>) -> Result<(),String> {
+    *auth.0.lock().map_err(error)?=None;
+    Ok(())
+}
 
 fn init_db(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute_batch(
@@ -18,6 +91,20 @@ fn init_db(connection: &Connection) -> rusqlite::Result<()> {
             address TEXT NOT NULL DEFAULT ''
         );
         INSERT OR IGNORE INTO shops (id, name) VALUES (1, 'Ma boutique');
+        CREATE TABLE IF NOT EXISTS shop_branding (
+            shop_id INTEGER PRIMARY KEY CHECK (shop_id=1) REFERENCES shops(id),
+            logo_data TEXT NOT NULL DEFAULT '',
+            receipt_header TEXT NOT NULL DEFAULT '',
+            receipt_footer TEXT NOT NULL DEFAULT 'Merci pour votre achat !',
+            receipt_format TEXT NOT NULL DEFAULT 'ticket' CHECK (receipt_format IN ('ticket','a4'))
+        );
+        INSERT OR IGNORE INTO shop_branding (shop_id) VALUES (1);
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL CHECK (role IN ('admin','vendeur'))
+        );
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -107,7 +194,8 @@ struct Variant {
 }
 
 #[tauri::command]
-fn get_catalog(db: State<'_, Db>) -> Result<Vec<Variant>, String> {
+fn get_catalog(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Vec<Variant>, String> {
+    require_auth(&auth)?;
     let conn = db.0.lock().map_err(error)?;
     let mut stmt = conn.prepare(
         "SELECT v.id, p.id, p.name, p.category, v.size, v.color, v.sku,
@@ -143,7 +231,8 @@ struct NewProduct {
 }
 
 #[tauri::command]
-fn create_product(db: State<'_, Db>, input: NewProduct) -> Result<i64, String> {
+fn create_product(db: State<'_, Db>, auth: State<'_, Auth>, input: NewProduct) -> Result<i64, String> {
+    require_admin(&auth)?;
     let name = input.name.trim();
     if name.is_empty() || input.category.trim().is_empty() {
         return Err("Le nom et la catégorie sont obligatoires.".into());
@@ -179,7 +268,8 @@ fn create_product(db: State<'_, Db>, input: NewProduct) -> Result<i64, String> {
 }
 
 #[tauri::command]
-fn adjust_stock(db: State<'_, Db>, variant_id: i64, delta: i64, reason: String) -> Result<(), String> {
+fn adjust_stock(db: State<'_, Db>, auth: State<'_, Auth>, variant_id: i64, delta: i64, reason: String) -> Result<(), String> {
+    require_admin(&auth)?;
     if delta == 0 || reason.trim().is_empty() {
         return Err("Indiquez une quantité et un motif.".into());
     }
@@ -221,7 +311,8 @@ struct Receipt {
 }
 
 #[tauri::command]
-fn checkout(db: State<'_, Db>, input: CheckoutInput) -> Result<Receipt, String> {
+fn checkout(db: State<'_, Db>, auth: State<'_, Auth>, input: CheckoutInput) -> Result<Receipt, String> {
+    require_auth(&auth)?;
     if input.request_id.trim().is_empty() || input.items.is_empty() {
         return Err("Panier ou identifiant de vente invalide.".into());
     }
@@ -299,7 +390,8 @@ struct Dashboard {
 }
 
 #[tauri::command]
-fn get_dashboard(db: State<'_, Db>) -> Result<Dashboard,String> {
+fn get_dashboard(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Dashboard,String> {
+    require_admin(&auth)?;
     let conn = db.0.lock().map_err(error)?;
     let (sales_total,gross_profit,sales_count): (i64,i64,i64) = conn.query_row(
         "SELECT COALESCE(SUM(total),0), COALESCE(SUM(total-total_cost),0), COUNT(*)
@@ -325,7 +417,8 @@ struct Sale {
 }
 
 #[tauri::command]
-fn get_sales(db: State<'_, Db>) -> Result<Vec<Sale>,String> {
+fn get_sales(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Vec<Sale>,String> {
+    require_auth(&auth)?;
     let conn = db.0.lock().map_err(error)?;
     let mut stmt = conn.prepare(
         "SELECT id,reference,total,total_cost,payment_method,created_at FROM sales ORDER BY id DESC LIMIT 100"
@@ -342,7 +435,8 @@ fn get_sales(db: State<'_, Db>) -> Result<Vec<Sale>,String> {
 struct ReportDay { day: String, total: i64, gross_profit: i64, count: i64 }
 
 #[tauri::command]
-fn get_report(db: State<'_, Db>, from: String, to: String) -> Result<Vec<ReportDay>,String> {
+fn get_report(db: State<'_, Db>, auth: State<'_, Auth>, from: String, to: String) -> Result<Vec<ReportDay>,String> {
+    require_admin(&auth)?;
     if from.len()!=10 || to.len()!=10 || from>to { return Err("Période invalide.".into()); }
     let conn = db.0.lock().map_err(error)?;
     let mut stmt = conn.prepare(
@@ -358,7 +452,8 @@ fn get_report(db: State<'_, Db>, from: String, to: String) -> Result<Vec<ReportD
 }
 
 #[tauri::command]
-fn add_expense(db: State<'_, Db>, label: String, amount: i64) -> Result<(),String> {
+fn add_expense(db: State<'_, Db>, auth: State<'_, Auth>, label: String, amount: i64) -> Result<(),String> {
+    require_admin(&auth)?;
     if label.trim().is_empty() || amount <= 0 { return Err("Dépense invalide.".into()); }
     let conn = db.0.lock().map_err(error)?;
     conn.execute("INSERT INTO expenses (label,amount,created_at) VALUES (?1,?2,?3)",
@@ -368,30 +463,113 @@ fn add_expense(db: State<'_, Db>, label: String, amount: i64) -> Result<(),Strin
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Shop { name: String, phone: String, address: String }
+struct Shop {
+    name: String,
+    phone: String,
+    address: String,
+    logo_data: String,
+    receipt_header: String,
+    receipt_footer: String,
+    receipt_format: String,
+}
 
 #[tauri::command]
-fn get_shop(db: State<'_, Db>) -> Result<Shop,String> {
+fn get_shop(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Shop,String> {
+    require_auth(&auth)?;
     let conn=db.0.lock().map_err(error)?;
-    conn.query_row("SELECT name,phone,address FROM shops WHERE id=1",[],|r|
-        Ok(Shop {name:r.get(0)?,phone:r.get(1)?,address:r.get(2)?})
+    conn.query_row(
+        "SELECT s.name,s.phone,s.address,b.logo_data,b.receipt_header,b.receipt_footer,b.receipt_format
+         FROM shops s JOIN shop_branding b ON b.shop_id=s.id WHERE s.id=1",
+        [], |r| Ok(Shop{
+            name:r.get(0)?,phone:r.get(1)?,address:r.get(2)?,
+            logo_data:r.get(3)?,receipt_header:r.get(4)?,
+            receipt_footer:r.get(5)?,receipt_format:r.get(6)?
+        })
     ).map_err(error)
 }
 
-#[tauri::command]
-fn update_shop(db: State<'_, Db>, shop: ShopInput) -> Result<(),String> {
-    if shop.name.trim().is_empty() { return Err("Le nom de la boutique est obligatoire.".into()); }
-    let conn=db.0.lock().map_err(error)?;
-    conn.execute("UPDATE shops SET name=?1,phone=?2,address=?3 WHERE id=1",
-        params![shop.name.trim(),shop.phone.trim(),shop.address.trim()]).map_err(error)?;
-    Ok(())
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ShopInput {
+    name: String,
+    phone: String,
+    address: String,
+    logo_data: String,
+    receipt_header: String,
+    receipt_footer: String,
+    receipt_format: String,
 }
 
-#[derive(Deserialize)]
-struct ShopInput { name: String, phone: String, address: String }
+#[tauri::command]
+fn update_shop(db: State<'_, Db>, auth: State<'_, Auth>, shop: ShopInput) -> Result<(),String> {
+    require_admin(&auth)?;
+    if shop.name.trim().is_empty() || shop.name.len()>120 { return Err("Nom de boutique invalide.".into()); }
+    if shop.phone.len()>80 || shop.address.len()>250 ||
+        shop.receipt_header.len()>350 || shop.receipt_footer.len()>350 {
+        return Err("En-tête, pied de page ou coordonnées trop longs.".into());
+    }
+    if !["ticket","a4"].contains(&shop.receipt_format.as_str()) {
+        return Err("Format de document invalide.".into());
+    }
+    if shop.logo_data.len()>700_000 ||
+       (!shop.logo_data.is_empty() && !["data:image/png;base64,","data:image/jpeg;base64,","data:image/webp;base64,"].iter().any(|prefix|shop.logo_data.starts_with(prefix))) {
+        return Err("Logo invalide. Utilisez PNG, JPG ou WebP (maximum 500 Ko).".into());
+    }
+    let mut conn=db.0.lock().map_err(error)?;
+    let tx=conn.transaction().map_err(error)?;
+    tx.execute("UPDATE shops SET name=?1,phone=?2,address=?3 WHERE id=1",
+        params![shop.name.trim(),shop.phone.trim(),shop.address.trim()]).map_err(error)?;
+    tx.execute(
+        "UPDATE shop_branding SET logo_data=?1,receipt_header=?2,receipt_footer=?3,receipt_format=?4 WHERE shop_id=1",
+        params![shop.logo_data,shop.receipt_header.trim(),shop.receipt_footer.trim(),shop.receipt_format]
+    ).map_err(error)?;
+    tx.commit().map_err(error)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReceiptLine {
+    name: String,
+    variant: String,
+    quantity: i64,
+    unit_price: i64,
+    line_total: i64,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReceiptDocument {
+    reference: String,
+    created_at: String,
+    payment_method: String,
+    subtotal: i64,
+    discount: i64,
+    total: i64,
+    lines: Vec<ReceiptLine>,
+}
+#[tauri::command]
+fn get_receipt(db: State<'_, Db>, auth: State<'_, Auth>, sale_id: i64) -> Result<ReceiptDocument,String> {
+    require_auth(&auth)?;
+    let conn=db.0.lock().map_err(error)?;
+    let (reference,created_at,payment_method,subtotal,discount,total)=conn.query_row(
+        "SELECT reference,created_at,payment_method,subtotal,discount,total FROM sales WHERE id=?1",
+        params![sale_id],
+        |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,
+                r.get::<_,i64>(3)?,r.get::<_,i64>(4)?,r.get::<_,i64>(5)?))
+    ).optional().map_err(error)?.ok_or("Vente introuvable.")?;
+    let mut stmt=conn.prepare(
+        "SELECT name_snapshot,variant_snapshot,quantity,unit_price,line_total
+         FROM sale_items WHERE sale_id=?1 ORDER BY id"
+    ).map_err(error)?;
+    let lines=stmt.query_map(params![sale_id], |r| Ok(ReceiptLine {
+        name:r.get(0)?,variant:r.get(1)?,quantity:r.get(2)?,
+        unit_price:r.get(3)?,line_total:r.get(4)?
+    })).map_err(error)?.collect::<rusqlite::Result<Vec<_>>>().map_err(error)?;
+    Ok(ReceiptDocument{reference,created_at,payment_method,subtotal,discount,total,lines})
+}
 
 #[tauri::command]
-fn backup_now(app: tauri::AppHandle, db: State<'_, Db>) -> Result<String,String> {
+fn backup_now(app: tauri::AppHandle, db: State<'_, Db>, auth: State<'_, Auth>) -> Result<String,String> {
+    require_admin(&auth)?;
     let path=app.path().app_local_data_dir().map_err(error)?.join("backups");
     fs::create_dir_all(&path).map_err(error)?;
     let dest=path.join(format!("modestock-{}.db",Local::now().format("%Y%m%d-%H%M%S-%3f")));
@@ -409,12 +587,14 @@ pub fn run() {
             conn.busy_timeout(Duration::from_secs(5))?;
             init_db(&conn)?;
             app.manage(Db(Mutex::new(conn)));
+            app.manage(Auth(Mutex::new(None)));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_catalog,create_product,adjust_stock,checkout,
             get_dashboard,get_sales,get_report,add_expense,
-            get_shop,update_shop,backup_now
+            get_shop,update_shop,backup_now,get_receipt,
+            auth_status,register_admin,login,logout
         ])
         .run(tauri::generate_context!())
         .expect("Erreur de lancement de ModeStock Local");
