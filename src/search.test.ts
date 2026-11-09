@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchesProduct, matchesVariant, normalizeSearch } from "./search";
+import { matchesCustomer, matchesProduct, matchesVariant, normalizeSearch } from "./search";
 import type { Variant } from "./types";
 
 const shoe: Variant = {
@@ -42,5 +42,30 @@ describe("recherche produits instantanée", () => {
     expect(matchesProduct(product, "nike 42")).toBe(true);
     expect(matchesProduct(product, "noir chaussure")).toBe(true);
     expect(matchesProduct(product, "pointure 43")).toBe(false);
+  });
+});
+
+describe("recherche instantanée des clients", () => {
+  const clients = [
+    { name: "Moussa Traoré", phone: "+223 76 45 12 90", address: "Bamako, Kalaban-Coura" },
+    { name: "Aïssata Diarra", phone: "+223 70 22 33 44", address: "Hamdallaye ACI 2000" },
+  ];
+
+  it("filtre au fil de la saisie par nom, même sans accent", () => {
+    expect(clients.filter(c => matchesCustomer(c, "mous")).length).toBe(1);
+    expect(matchesCustomer(clients[0], "moussa traore")).toBe(true);
+    expect(matchesCustomer(clients[1], "aissata")).toBe(true);
+    expect(matchesCustomer(clients[0], "aissata")).toBe(false);
+  });
+  it("retrouve instantanément un téléphone et un quartier", () => {
+    expect(matchesCustomer(clients[0], "76 45 12")).toBe(true);
+    expect(matchesCustomer(clients[1], "70 22")).toBe(true);
+    expect(matchesCustomer(clients[0], "Kalaban")).toBe(true);
+    expect(matchesCustomer(clients[1], "hamdallaye aci")).toBe(true);
+  });
+  it("cherche plusieurs mots sur différents champs", () => {
+    expect(matchesCustomer(clients[0], "moussa 76")).toBe(true);
+    expect(matchesCustomer(clients[0], "moussa 70")).toBe(false);
+    expect(clients.every(c => matchesCustomer(c, ""))).toBe(true);
   });
 });
