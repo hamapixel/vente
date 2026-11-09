@@ -1,0 +1,421 @@
+use chrono::Local;
+use rusqlite::{params, Connection, OptionalExtension};
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, fs, sync::Mutex, time::Duration};
+use tauri::{Manager, State};
+
+struct Db(Mutex<Connection>);
+
+fn init_db(connection: &Connection) -> rusqlite::Result<()> {
+    connection.execute_batch(
+        r#"
+        PRAGMA foreign_keys = ON;
+        PRAGMA journal_mode = WAL;
+        CREATE TABLE IF NOT EXISTS shops (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL DEFAULT '',
+            address TEXT NOT NULL DEFAULT ''
+        );
+        INSERT OR IGNORE INTO shops (id, name) VALUES (1, 'Ma boutique');
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS variants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL REFERENCES products(id),
+            size TEXT NOT NULL,
+            color TEXT NOT NULL,
+            sku TEXT NOT NULL UNIQUE,
+            purchase_price INTEGER NOT NULL CHECK (purchase_price >= 0),
+            sale_price INTEGER NOT NULL CHECK (sale_price >= 0),
+            quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+            UNIQUE (product_id, size, color)
+        );
+        CREATE TABLE IF NOT EXISTS sales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reference TEXT NOT NULL UNIQUE,
+            request_id TEXT NOT NULL UNIQUE,
+            subtotal INTEGER NOT NULL,
+            discount INTEGER NOT NULL,
+            total INTEGER NOT NULL,
+            total_cost INTEGER NOT NULL,
+            payment_method TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS sale_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER NOT NULL REFERENCES sales(id),
+            variant_id INTEGER NOT NULL REFERENCES variants(id),
+            name_snapshot TEXT NOT NULL,
+            variant_snapshot TEXT NOT NULL,
+            quantity INTEGER NOT NULL CHECK (quantity > 0),
+            unit_price INTEGER NOT NULL,
+            unit_cost INTEGER NOT NULL,
+            line_total INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS stock_movements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            variant_id INTEGER NOT NULL REFERENCES variants(id),
+            delta INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            sale_id INTEGER REFERENCES sales(id),
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            amount INTEGER NOT NULL CHECK (amount > 0),
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_variants_product ON variants(product_id);
+        CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(created_at);
+        CREATE INDEX IF NOT EXISTS idx_stock_variant ON stock_movements(variant_id);
+        CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(created_at);
+        "#
+    )
+}
+
+fn now() -> String {
+    Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string()
+}
+
+fn today() -> String {
+    Local::now().format("%Y-%m-%d").to_string()
+}
+
+fn error(e: impl std::fmt::Display) -> String {
+    e.to_string()
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Variant {
+    id: i64,
+    product_id: i64,
+    name: String,
+    category: String,
+    size: String,
+    color: String,
+    sku: String,
+    purchase_price: i64,
+    sale_price: i64,
+    quantity: i64,
+}
+
+#[tauri::command]
+fn get_catalog(db: State<'_, Db>) -> Result<Vec<Variant>, String> {
+    let conn = db.0.lock().map_err(error)?;
+    let mut stmt = conn.prepare(
+        "SELECT v.id, p.id, p.name, p.category, v.size, v.color, v.sku,
+                v.purchase_price, v.sale_price, v.quantity
+         FROM variants v JOIN products p ON p.id = v.product_id
+         ORDER BY p.name COLLATE NOCASE, v.size, v.color"
+    ).map_err(error)?;
+    let rows = stmt.query_map([], |r| Ok(Variant {
+        id: r.get(0)?, product_id: r.get(1)?, name: r.get(2)?,
+        category: r.get(3)?, size: r.get(4)?, color: r.get(5)?,
+        sku: r.get(6)?, purchase_price: r.get(7)?,
+        sale_price: r.get(8)?, quantity: r.get(9)?,
+    })).map_err(error)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NewVariant {
+    size: String,
+    color: String,
+    quantity: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NewProduct {
+    name: String,
+    category: String,
+    purchase_price: i64,
+    sale_price: i64,
+    variants: Vec<NewVariant>,
+}
+
+#[tauri::command]
+fn create_product(db: State<'_, Db>, input: NewProduct) -> Result<i64, String> {
+    let name = input.name.trim();
+    if name.is_empty() || input.category.trim().is_empty() {
+        return Err("Le nom et la catégorie sont obligatoires.".into());
+    }
+    if input.purchase_price < 0 || input.sale_price < 0 || input.variants.is_empty() {
+        return Err("Prix ou variantes invalides.".into());
+    }
+    let mut conn = db.0.lock().map_err(error)?;
+    let tx = conn.transaction().map_err(error)?;
+    tx.execute("INSERT INTO products (name,category,created_at) VALUES (?1,?2,?3)",
+        params![name, input.category.trim(), now()]).map_err(error)?;
+    let product_id = tx.last_insert_rowid();
+    for (index, variant) in input.variants.iter().enumerate() {
+        if variant.quantity < 0 {
+            return Err("Le stock initial ne peut pas être négatif.".into());
+        }
+        let size = if variant.size.trim().is_empty() { "Unique" } else { variant.size.trim() };
+        let color = if variant.color.trim().is_empty() { "Standard" } else { variant.color.trim() };
+        let sku = format!("MS-{}-{:03}", product_id, index + 1);
+        tx.execute("INSERT INTO variants (product_id,size,color,sku,purchase_price,sale_price,quantity)
+                    VALUES (?1,?2,?3,?4,?5,?6,?7)",
+            params![product_id,size,color,sku,input.purchase_price,input.sale_price,variant.quantity]
+        ).map_err(error)?;
+        let variant_id = tx.last_insert_rowid();
+        if variant.quantity > 0 {
+            tx.execute("INSERT INTO stock_movements (variant_id,delta,reason,created_at)
+                        VALUES (?1,?2,'Stock initial',?3)",
+                params![variant_id,variant.quantity,now()]).map_err(error)?;
+        }
+    }
+    tx.commit().map_err(error)?;
+    Ok(product_id)
+}
+
+#[tauri::command]
+fn adjust_stock(db: State<'_, Db>, variant_id: i64, delta: i64, reason: String) -> Result<(), String> {
+    if delta == 0 || reason.trim().is_empty() {
+        return Err("Indiquez une quantité et un motif.".into());
+    }
+    let mut conn = db.0.lock().map_err(error)?;
+    let tx = conn.transaction().map_err(error)?;
+    let changed = tx.execute(
+        "UPDATE variants SET quantity = quantity + ?1
+         WHERE id = ?2 AND quantity + ?1 >= 0",
+        params![delta,variant_id]
+    ).map_err(error)?;
+    if changed == 0 { return Err("Stock insuffisant ou variante introuvable.".into()); }
+    tx.execute("INSERT INTO stock_movements (variant_id,delta,reason,created_at)
+                VALUES (?1,?2,?3,?4)",
+        params![variant_id,delta,reason.trim(),now()]).map_err(error)?;
+    tx.commit().map_err(error)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CartItem { variant_id: i64, quantity: i64 }
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CheckoutInput {
+    request_id: String,
+    items: Vec<CartItem>,
+    discount: i64,
+    payment_method: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Receipt {
+    id: i64,
+    reference: String,
+    total: i64,
+    total_cost: i64,
+    created_at: String,
+}
+
+#[tauri::command]
+fn checkout(db: State<'_, Db>, input: CheckoutInput) -> Result<Receipt, String> {
+    if input.request_id.trim().is_empty() || input.items.is_empty() {
+        return Err("Panier ou identifiant de vente invalide.".into());
+    }
+    if !["Espèces", "Orange Money", "Moov Money", "Autre"].contains(&input.payment_method.as_str()) {
+        return Err("Mode de paiement invalide.".into());
+    }
+    let mut conn = db.0.lock().map_err(error)?;
+    let tx = conn.transaction().map_err(error)?;
+    let existing = tx.query_row(
+        "SELECT id,reference,total,total_cost,created_at FROM sales WHERE request_id=?1",
+        params![input.request_id], |r| Ok(Receipt {
+            id:r.get(0)?,reference:r.get(1)?,total:r.get(2)?,
+            total_cost:r.get(3)?,created_at:r.get(4)?
+        })
+    ).optional().map_err(error)?;
+    if let Some(saved) = existing { return Ok(saved); }
+
+    let mut quantities: BTreeMap<i64,i64> = BTreeMap::new();
+    for item in input.items {
+        if item.quantity <= 0 { return Err("Quantité invalide.".into()); }
+        let current = quantities.entry(item.variant_id).or_insert(0);
+        *current = current.checked_add(item.quantity).ok_or("Quantité excessive.")?;
+    }
+    let mut lines = Vec::new();
+    let mut subtotal = 0i64;
+    let mut total_cost = 0i64;
+    for (variant_id, quantity) in &quantities {
+        let row = tx.query_row(
+            "SELECT p.name, v.size || ' / ' || v.color, v.quantity, v.sale_price, v.purchase_price
+             FROM variants v JOIN products p ON p.id=v.product_id WHERE v.id=?1",
+            params![variant_id],
+            |r| Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,
+                     r.get::<_,i64>(2)?,r.get::<_,i64>(3)?,r.get::<_,i64>(4)?))
+        ).optional().map_err(error)?.ok_or("Produit introuvable.")?;
+        if row.2 < *quantity { return Err(format!("Stock insuffisant pour {} ({}).",row.0,row.1)); }
+        let line_total = row.3.checked_mul(*quantity).ok_or("Montant trop élevé.")?;
+        let line_cost = row.4.checked_mul(*quantity).ok_or("Coût trop élevé.")?;
+        subtotal = subtotal.checked_add(line_total).ok_or("Montant trop élevé.")?;
+        total_cost = total_cost.checked_add(line_cost).ok_or("Coût trop élevé.")?;
+        lines.push((*variant_id,*quantity,row.0,row.1,row.3,row.4,line_total));
+    }
+    if input.discount < 0 || input.discount > subtotal { return Err("Remise invalide.".into()); }
+    let total = subtotal - input.discount;
+    let created_at = now();
+    tx.execute(
+        "INSERT INTO sales (reference,request_id,subtotal,discount,total,total_cost,payment_method,created_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+        params!["TMP",input.request_id,subtotal,input.discount,total,total_cost,input.payment_method,created_at]
+    ).map_err(error)?;
+    let sale_id = tx.last_insert_rowid();
+    let reference = format!("VT-{}-{:05}", Local::now().format("%Y%m%d"),sale_id);
+    tx.execute("UPDATE sales SET reference=?1 WHERE id=?2",params![reference,sale_id]).map_err(error)?;
+    for (variant_id, quantity, name, label, unit_price, unit_cost, line_total) in lines {
+        tx.execute(
+            "INSERT INTO sale_items (sale_id,variant_id,name_snapshot,variant_snapshot,quantity,unit_price,unit_cost,line_total)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
+            params![sale_id,variant_id,name,label,quantity,unit_price,unit_cost,line_total]
+        ).map_err(error)?;
+        tx.execute("UPDATE variants SET quantity=quantity-?1 WHERE id=?2",params![quantity,variant_id]).map_err(error)?;
+        tx.execute(
+            "INSERT INTO stock_movements (variant_id,delta,reason,sale_id,created_at)
+             VALUES (?1,?2,'Vente',?3,?4)",
+            params![variant_id,-quantity,sale_id,created_at]
+        ).map_err(error)?;
+    }
+    tx.commit().map_err(error)?;
+    Ok(Receipt {id:sale_id,reference,total,total_cost,created_at})
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Dashboard {
+    sales_total: i64, gross_profit: i64, expenses: i64,
+    sales_count: i64, low_stock: i64, variant_count: i64,
+}
+
+#[tauri::command]
+fn get_dashboard(db: State<'_, Db>) -> Result<Dashboard,String> {
+    let conn = db.0.lock().map_err(error)?;
+    let (sales_total,gross_profit,sales_count): (i64,i64,i64) = conn.query_row(
+        "SELECT COALESCE(SUM(total),0), COALESCE(SUM(total-total_cost),0), COUNT(*)
+         FROM sales WHERE substr(created_at,1,10)=?1",
+        params![today()],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))
+    ).map_err(error)?;
+    let expenses = conn.query_row(
+        "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE substr(created_at,1,10)=?1",
+        params![today()],|r|r.get(0)
+    ).map_err(error)?;
+    let (low_stock,variant_count): (i64,i64) = conn.query_row(
+        "SELECT COALESCE(SUM(CASE WHEN quantity<=3 THEN 1 ELSE 0 END),0),COUNT(*) FROM variants",
+        [],|r|Ok((r.get(0)?,r.get(1)?))
+    ).map_err(error)?;
+    Ok(Dashboard {sales_total,gross_profit,expenses,sales_count,low_stock,variant_count})
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Sale {
+    id: i64, reference: String, total: i64, total_cost: i64,
+    payment_method: String, created_at: String,
+}
+
+#[tauri::command]
+fn get_sales(db: State<'_, Db>) -> Result<Vec<Sale>,String> {
+    let conn = db.0.lock().map_err(error)?;
+    let mut stmt = conn.prepare(
+        "SELECT id,reference,total,total_cost,payment_method,created_at FROM sales ORDER BY id DESC LIMIT 100"
+    ).map_err(error)?;
+    let rows=stmt.query_map([],|r|Ok(Sale {
+        id:r.get(0)?,reference:r.get(1)?,total:r.get(2)?,
+        total_cost:r.get(3)?,payment_method:r.get(4)?,created_at:r.get(5)?
+    })).map_err(error)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReportDay { day: String, total: i64, gross_profit: i64, count: i64 }
+
+#[tauri::command]
+fn get_report(db: State<'_, Db>, from: String, to: String) -> Result<Vec<ReportDay>,String> {
+    if from.len()!=10 || to.len()!=10 || from>to { return Err("Période invalide.".into()); }
+    let conn = db.0.lock().map_err(error)?;
+    let mut stmt = conn.prepare(
+        "SELECT substr(created_at,1,10),COALESCE(SUM(total),0),
+                COALESCE(SUM(total-total_cost),0),COUNT(*)
+         FROM sales WHERE substr(created_at,1,10) BETWEEN ?1 AND ?2
+         GROUP BY substr(created_at,1,10) ORDER BY 1 DESC"
+    ).map_err(error)?;
+    let rows=stmt.query_map(params![from,to],|r|Ok(ReportDay {
+        day:r.get(0)?,total:r.get(1)?,gross_profit:r.get(2)?,count:r.get(3)?
+    })).map_err(error)?;
+    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
+}
+
+#[tauri::command]
+fn add_expense(db: State<'_, Db>, label: String, amount: i64) -> Result<(),String> {
+    if label.trim().is_empty() || amount <= 0 { return Err("Dépense invalide.".into()); }
+    let conn = db.0.lock().map_err(error)?;
+    conn.execute("INSERT INTO expenses (label,amount,created_at) VALUES (?1,?2,?3)",
+        params![label.trim(),amount,now()]).map_err(error)?;
+    Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Shop { name: String, phone: String, address: String }
+
+#[tauri::command]
+fn get_shop(db: State<'_, Db>) -> Result<Shop,String> {
+    let conn=db.0.lock().map_err(error)?;
+    conn.query_row("SELECT name,phone,address FROM shops WHERE id=1",[],|r|
+        Ok(Shop {name:r.get(0)?,phone:r.get(1)?,address:r.get(2)?})
+    ).map_err(error)
+}
+
+#[tauri::command]
+fn update_shop(db: State<'_, Db>, shop: ShopInput) -> Result<(),String> {
+    if shop.name.trim().is_empty() { return Err("Le nom de la boutique est obligatoire.".into()); }
+    let conn=db.0.lock().map_err(error)?;
+    conn.execute("UPDATE shops SET name=?1,phone=?2,address=?3 WHERE id=1",
+        params![shop.name.trim(),shop.phone.trim(),shop.address.trim()]).map_err(error)?;
+    Ok(())
+}
+
+#[derive(Deserialize)]
+struct ShopInput { name: String, phone: String, address: String }
+
+#[tauri::command]
+fn backup_now(app: tauri::AppHandle, db: State<'_, Db>) -> Result<String,String> {
+    let path=app.path().app_local_data_dir().map_err(error)?.join("backups");
+    fs::create_dir_all(&path).map_err(error)?;
+    let dest=path.join(format!("modestock-{}.db",Local::now().format("%Y%m%d-%H%M%S-%3f")));
+    let conn=db.0.lock().map_err(error)?;
+    conn.execute("VACUUM INTO ?1",params![dest.to_string_lossy().to_string()]).map_err(error)?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+pub fn run() {
+    tauri::Builder::default()
+        .setup(|app| {
+            let directory=app.path().app_local_data_dir()?;
+            fs::create_dir_all(&directory)?;
+            let conn=Connection::open(directory.join("modestock.db"))?;
+            conn.busy_timeout(Duration::from_secs(5))?;
+            init_db(&conn)?;
+            app.manage(Db(Mutex::new(conn)));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            get_catalog,create_product,adjust_stock,checkout,
+            get_dashboard,get_sales,get_report,add_expense,
+            get_shop,update_shop,backup_now
+        ])
+        .run(tauri::generate_context!())
+        .expect("Erreur de lancement de ModeStock Local");
+}

@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Fonctionnalités locales de ModeStock",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default"
+  ]
+}
