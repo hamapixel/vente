@@ -375,13 +375,17 @@ struct Receipt {
 #[tauri::command]
 fn checkout(db: State<'_, Db>, auth: State<'_, Auth>, input: CheckoutInput) -> Result<Receipt, String> {
     require_auth(&auth)?;
+    let mut conn = db.0.lock().map_err(error)?;
+    checkout_core(&mut conn, input)
+}
+
+fn checkout_core(conn: &mut Connection, input: CheckoutInput) -> Result<Receipt, String> {
     if input.request_id.trim().is_empty() || input.items.is_empty() {
         return Err("Panier ou identifiant de vente invalide.".into());
     }
     if !["Espèces", "Orange Money", "Moov Money", "Autre"].contains(&input.payment_method.as_str()) {
         return Err("Mode de paiement invalide.".into());
     }
-    let mut conn = db.0.lock().map_err(error)?;
     let tx = conn.transaction().map_err(error)?;
     let existing = tx.query_row(
         "SELECT id,reference,total,total_cost,created_at FROM sales WHERE request_id=?1",
@@ -756,6 +760,77 @@ mod tests {
         assert!(check_login_attempt(&guard).is_err());
         clear_failed_login(&guard).expect("Clear lockout");
         assert!(check_login_attempt(&guard).is_ok());
+    }
+
+
+    #[test]
+    fn sale_with_deposit_keeps_debt_until_customer_pays() {
+        let mut conn=Connection::open_in_memory().unwrap();
+        init_db(&conn).unwrap();
+        commerce::migrate(&mut conn).unwrap();
+        conn.execute(
+            "INSERT INTO customers(name,phone,created_at) VALUES ('Client Test','70000000',?1)",
+            params![now()]
+        ).unwrap();
+        let client_id=conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO products(name,category,created_at) VALUES ('Maillot','Maillots',?1)",
+            params![now()]
+        ).unwrap();
+        let product_id=conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO variants(product_id,size,color,sku,purchase_price,sale_price,quantity)
+             VALUES (?1,'L','Bleu','TEST-SKU',5000,10000,3)",params![product_id]
+        ).unwrap();
+        let variant_id=conn.last_insert_rowid();
+        let build=||CheckoutInput {
+            request_id:"checkout-test-001".into(),
+            items:vec![CartItem{variant_id,quantity:1}],
+            discount:0,payment_method:"Espèces".into(),
+            customer_id:Some(client_id),payment_received:Some(2000)
+        };
+        let first=checkout_core(&mut conn,build()).unwrap();
+        assert_eq!(first.paid,2000);
+        assert_eq!(first.remaining,8000);
+        let repeated=checkout_core(&mut conn,build()).unwrap();
+        assert_eq!(repeated.id,first.id);
+        assert_eq!(repeated.remaining,8000);
+        let stock:i64=conn.query_row(
+            "SELECT quantity FROM variants WHERE id=?1",params![variant_id],|r|r.get(0)
+        ).unwrap();
+        assert_eq!(stock,2);
+        let payment_count:i64=conn.query_row(
+            "SELECT COUNT(*) FROM sale_payments WHERE sale_id=?1",params![first.id],|r|r.get(0)
+        ).unwrap();
+        assert_eq!(payment_count,1);
+        let final_payment=commerce::settle(&mut conn,first.id,8000,"Moov Money","pay-test-001").unwrap();
+        assert_eq!(final_payment.remaining,0);
+    }
+
+    #[test]
+    fn credit_without_customer_and_overpaid_sale_are_rejected() {
+        let mut conn=Connection::open_in_memory().unwrap();
+        init_db(&conn).unwrap();
+        commerce::migrate(&mut conn).unwrap();
+        conn.execute("INSERT INTO products(name,category,created_at) VALUES ('Jean','Jeans',?1)",
+            params![now()]).unwrap();
+        let product_id=conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO variants(product_id,size,color,sku,purchase_price,sale_price,quantity)
+             VALUES (?1,'32','Noir','JEAN-SKU',5000,12000,3)",params![product_id]
+        ).unwrap();
+        let vid=conn.last_insert_rowid();
+        for (received,client) in [(1000,None),(15000,None)] {
+            let attempt=CheckoutInput {
+                request_id:format!("bad-{}",received),
+                items:vec![CartItem{variant_id:vid,quantity:1}],
+                discount:0,payment_method:"Espèces".into(),
+                customer_id:client,payment_received:Some(received)
+            };
+            assert!(checkout_core(&mut conn,attempt).is_err());
+        }
+        let count:i64=conn.query_row("SELECT COUNT(*) FROM sales",[],|r|r.get(0)).unwrap();
+        assert_eq!(count,0);
     }
 
     #[test]
