@@ -24,5 +24,7 @@ jobs:
         run: npm run tauri icon public/brand.svg
       - name: Verifier TypeScript et Vite
         run: npm run build
+      - name: Tester la recherche des produits et chaussures
+        run: npm run test
       - name: Verifier Rust et Tauri
         run: cargo check --manifest-path src-tauri/Cargo.toml
