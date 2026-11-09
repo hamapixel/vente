@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AuthStatus, CartLine, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
+import type { AuthStatus, CartLine, Customer, CustomerInput, Dashboard, LoginBrand, NewProduct, PaymentEntry, ProductEdit, ProductMovement, Receipt, ReceiptDocument, ReportDay, Sale, Settlement, Shop, UserSession, Variant } from "./types";
 
 // Dans un onglet navigateur ordinaire, l'API Tauri/SQLite n'est pas disponible.
 function desktopInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -22,9 +22,17 @@ export const api = {
   createProduct: (input: NewProduct) => desktopInvoke<number>("create_product", { input }),
   adjustStock: (variantId: number, delta: number, reason: string) =>
     desktopInvoke<void>("adjust_stock", { variantId, delta, reason }),
-  checkout: (requestId: string, items: CartLine[], discount: number, paymentMethod: string) =>
-    desktopInvoke<Receipt>("checkout", { input: { requestId, items, discount, paymentMethod } }),
+  checkout: (requestId: string, items: CartLine[], discount: number, paymentMethod: string, customerId: number | null, paymentReceived: number) =>
+    desktopInvoke<Receipt>("checkout", { input: { requestId, items, discount, paymentMethod, customerId, paymentReceived } }),
   getDashboard: () => desktopInvoke<Dashboard>("get_dashboard"),
+  listCustomers: () => desktopInvoke<Customer[]>("list_customers"),
+  createCustomer: (input: CustomerInput) => desktopInvoke<number>("create_customer", { input }),
+  updateCustomer: (id: number, input: CustomerInput) => desktopInvoke<void>("update_customer", { id, input }),
+  listCustomerPayments: (customerId: number) => desktopInvoke<PaymentEntry[]>("list_customer_payments", { customerId }),
+  recordPayment: (saleId: number, amount: number, method: string, requestId: string) =>
+    desktopInvoke<Settlement>("record_payment", { saleId, amount, method, requestId }),
+  updateProduct: (input: ProductEdit) => desktopInvoke<void>("update_product", { input }),
+  productHistory: (productId: number) => desktopInvoke<ProductMovement[]>("product_history", { productId }),
   getSales: () => desktopInvoke<Sale[]>("get_sales"),
   getReport: (from: string, to: string) => desktopInvoke<ReportDay[]>("get_report", { from, to }),
   addExpense: (label: string, amount: number) => desktopInvoke<void>("add_expense", { label, amount }),
