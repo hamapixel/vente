@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowRight, CircleAlert, CreditCard, FileText, Pencil, Plus, Search, UserRound, Wallet, X } from "lucide-react";
 import { api } from "./api";
-import type { Customer, CustomerInput, PaymentEntry, Sale } from "./types";
+import type { Customer, CustomerInput, CustomerSale, PaymentEntry, Sale } from "./types";
 
 const money = (n:number) => new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(n)+" FCFA";
 export const blankCustomer: CustomerInput = { name:"", phone:"", address:"", note:"" };
@@ -49,28 +49,29 @@ export function CustomerEditor({customer,onClose,onSaved}:EditorProps) {
 
 interface CustomersProps {
   customers: Customer[];
-  sales: Sale[];
   onAdd: () => void;
   onEdit: (customer:Customer) => void;
-  onPay: (sale:Sale) => void;
+  onPay: (sale:PaymentTarget) => void;
   onReceipt: (id:number) => void;
   onSell: (id:number) => void;
 }
 
-export default function CustomersPanel({customers,sales,onAdd,onEdit,onPay,onReceipt,onSell}:CustomersProps) {
+export type PaymentTarget = Pick<Sale, "id" | "reference" | "remaining" | "customerName">;
+export default function CustomersPanel({customers,onAdd,onEdit,onPay,onReceipt,onSell}:CustomersProps) {
   const [query,setQuery]=useState("");
   const [selectedId,setSelectedId]=useState<number|null>(null);
   const [payments,setPayments]=useState<PaymentEntry[]>([]);
+  const [relatedSales,setRelatedSales]=useState<CustomerSale[]>([]);
   const [paymentError,setPaymentError]=useState("");
   const filtered=useMemo(()=>customers.filter(c=>[c.name,c.phone,c.address].join(" ").toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())),[customers,query]);
   const selected=customers.find(c=>c.id===selectedId) || filtered[0];
-  const relatedSales=sales.filter(s=>s.customerId===selected?.id);
   const debt=customers.reduce((n,c)=>n+c.balance,0);
 
   useEffect(()=>{
-    if(!selected){setPayments([]);return;}
+    if(!selected){setPayments([]);setRelatedSales([]);return;}
     let active=true;
     setPaymentError("");
+    void api.listCustomerSales(selected.id).then(rows=>{if(active)setRelatedSales(rows);}).catch(()=>{if(active)setRelatedSales([]);});
     void api.listCustomerPayments(selected.id).then(rows=>{if(active)setPayments(rows);}).catch(e=>{
       if(active)setPaymentError(typeof e==="string"?e:"Impossible de charger les règlements.");
     });
@@ -105,7 +106,7 @@ export default function CustomersPanel({customers,sales,onAdd,onEdit,onPay,onRec
           <div className="client-actionbar"><button className="primary-btn" onClick={()=>onSell(selected.id)}><Plus size={16}/> Nouvelle vente</button></div>
           <div className="section-heading"><div><h2>Ventes du client</h2><p>{relatedSales.length} transaction(s) parmi les ventes récentes</p></div></div>
           {!relatedSales.length?<p className="muted-cell">Aucune vente récente pour ce client.</p>:<div className="table-wrap"><table><thead><tr><th>Vente</th><th>Montant</th><th>Payé</th><th>Reste</th><th>Action</th></tr></thead><tbody>
-            {relatedSales.map(s=><tr key={s.id}><td>{s.reference}</td><td>{money(s.total)}</td><td>{money(s.paid)}</td><td className={s.remaining>0?"negative":"positive"}>{money(s.remaining)}</td><td><div className="inline-actions">{s.remaining>0&&<button className="table-action" onClick={()=>onPay(s)}><CreditCard size={14}/> Régler</button>}<button className="table-action" onClick={()=>onReceipt(s.id)}><FileText size={14}/> Ticket</button></div></td></tr>)}
+            {relatedSales.map(s=><tr key={s.id}><td>{s.reference}</td><td>{money(s.total)}</td><td>{money(s.paid)}</td><td className={s.remaining>0?"negative":"positive"}>{money(s.remaining)}</td><td><div className="inline-actions">{s.remaining>0&&<button className="table-action" onClick={()=>onPay({id:s.id,reference:s.reference,remaining:s.remaining,customerName:selected.name})}><CreditCard size={14}/> Régler</button>}<button className="table-action" onClick={()=>onReceipt(s.id)}><FileText size={14}/> Ticket</button></div></td></tr>)}
           </tbody></table></div>}
           <div className="section-heading customer-subheading"><div><h2>Historique des paiements</h2><p>Chaque règlement est conservé dans SQLite</p></div></div>
           {paymentError&&<p className="negative"><CircleAlert size={14}/> {paymentError}</p>}
@@ -116,7 +117,7 @@ export default function CustomersPanel({customers,sales,onAdd,onEdit,onPay,onRec
   </>;
 }
 
-export function PaymentDialog({sale,onClose,onSaved}:{sale:Sale;onClose:()=>void;onSaved:()=>void}) {
+export function PaymentDialog({sale,onClose,onSaved}:{sale:PaymentTarget;onClose:()=>void;onSaved:()=>void}) {
   const [amount,setAmount]=useState(String(sale.remaining));
   const [method,setMethod]=useState("Espèces");
   const [pending,setPending]=useState(false);
