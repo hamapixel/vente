@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowRight, CircleAlert, CreditCard, FileText, Pencil, Plus, Search, UserRound, Wallet, X } from "lucide-react";
 import { api } from "./api";
+import { matchesCustomer } from "./search";
 import type { Customer, CustomerInput, CustomerSale, PaymentEntry, Sale } from "./types";
 
 const money = (n:number) => new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(n)+" FCFA";
@@ -63,7 +64,7 @@ export default function CustomersPanel({customers,onAdd,onEdit,onPay,onReceipt,o
   const [payments,setPayments]=useState<PaymentEntry[]>([]);
   const [relatedSales,setRelatedSales]=useState<CustomerSale[]>([]);
   const [paymentError,setPaymentError]=useState("");
-  const filtered=useMemo(()=>customers.filter(c=>[c.name,c.phone,c.address].join(" ").toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())),[customers,query]);
+  const filtered=useMemo(()=>customers.filter(c=>matchesCustomer(c,query)),[customers,query]);
   const selected=customers.find(c=>c.id===selectedId) || filtered[0];
   const debt=customers.reduce((n,c)=>n+c.balance,0);
 
