@@ -171,3 +171,76 @@
 .search-clear:hover{background:#e2edf9;color:#336db2}
 .search-count{font-size:11px;color:#8a9aac;white-space:nowrap;align-self:center}
 @media print{.compact-login-page{display:none!important}}
+
+
+/* Clients, créances et règlement progressif */
+.customer-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.compact-stat{display:flex;flex-direction:column;gap:10px;min-height:125px}
+.compact-stat>span{font-size:11px;color:#8796aa;font-weight:700}
+.compact-stat>strong{font-size:23px;font-weight:800;letter-spacing:-.7px;color:#223853}
+.compact-stat>strong.negative{color:#c36b42}
+.compact-stat>small{font-size:10px;color:#a0adc0}
+.clients-layout{display:grid;grid-template-columns:minmax(270px,.75fr) minmax(0,1.65fr);gap:18px;align-items:start}
+.customer-list-panel,.customer-details-panel{min-height:450px}
+.customer-picker-list{display:grid;gap:6px;margin-top:15px;max-height:570px;overflow-y:auto}
+.customer-picker{display:flex;align-items:center;gap:10px;width:100%;padding:12px 9px;background:white;border:1px solid transparent;border-radius:10px;text-align:left}
+.customer-picker:hover,.customer-picker.selected{background:#f0f6ff;border-color:#d8e6f9}
+.customer-initials{width:38px;height:38px;display:grid;place-items:center;border-radius:10px;background:#e5efff;color:#3975b4;font-size:15px;font-weight:800;flex-shrink:0}
+.customer-picker-body{min-width:0;flex:1}
+.customer-picker-body strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#29405d}
+.customer-picker-body small{display:block;color:#9aabba;font-size:10px;margin-top:5px}
+.customer-picker-debt{font-weight:750;font-size:10px;white-space:nowrap}
+.customer-detail-head{display:flex;justify-content:space-between;gap:16px;align-items:center;padding-bottom:19px;border-bottom:1px solid #edf0f5}
+.customer-detail-head h2{font-size:20px;letter-spacing:-.5px;color:#203550;margin:0}
+.customer-detail-head p{font-size:11px;color:#8b9aae;margin:8px 0 0}
+.customer-note{font-size:11px;background:#f6f8fb;color:#667b95;border-radius:8px;padding:10px;line-height:1.6}
+.customer-financials{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:20px 0}
+.customer-financials>div{padding:12px 11px;background:#f6f9fd;border-radius:9px}
+.customer-financials span{font-size:10px;color:#8699ad;display:block;margin-bottom:8px}
+.customer-financials strong{font-size:13px;color:#28425c;white-space:nowrap}
+.customer-financials strong.negative{color:#c4684d}
+.customer-financials strong.positive{color:#228a68}
+.client-actionbar{display:flex;gap:10px;margin-bottom:24px}
+.customer-subheading{margin:25px 0 15px;padding-top:18px;border-top:1px solid #edf0f5}
+.inline-actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.inline-actions .table-action{white-space:nowrap}
+.debt-summary{border-radius:10px;background:#fff4e9;display:flex;align-items:center;justify-content:space-between;padding:15px;margin-bottom:20px;color:#986237;font-size:11px}
+.debt-summary strong{font-size:17px;color:#b46b2d}
+.payment-hint{display:flex;align-items:center;gap:8px;font-size:11px;color:#7e8fa4;line-height:1.5;margin:15px 0}
+.cart-customer-row{display:flex;gap:8px;align-items:stretch;margin:8px 0 16px}
+.cart-customer-row select{width:100%;min-width:0;border:1px solid #e2e9f2;border-radius:9px;background:white;color:#455c77;font-size:11px;padding:9px 6px;height:42px}
+.quick-customer-add{flex-shrink:0;width:42px;height:42px;display:grid;place-items:center;border:1px solid #b9d3ef;background:#ebf4ff;border-radius:9px;color:#3475bd}
+.quick-customer-add:hover{background:#d8eafe}
+.payment-modes{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:8px 0 17px}
+.payment-modes button{border:1px solid #e3eaf4;background:#f8fafd;color:#8190a4;border-radius:8px;padding:10px 6px;font-weight:700;font-size:10.5px}
+.payment-modes button.active{color:#286dbb;background:#e9f3ff;border-color:#86b6ed}
+.credit-preview{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#96653d;background:#fff5ec;padding:12px;border-radius:8px;font-size:11px;margin-bottom:12px}
+.credit-preview strong{font-size:12px;color:#b66c35}
+.debt-alert{display:flex;align-items:center;gap:7px;color:#c67a53;font-size:10px;line-height:1.5;margin:0 0 12px}
+
+/* Fiche produit et modification des variantes */
+.product-detail-modal{width:min(100%,840px)}
+.product-insight-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:22px}
+.product-insight-grid>div{border:1px solid #e9edf4;background:#f7f9fc;border-radius:11px;padding:15px;display:flex;flex-direction:column;gap:7px}
+.product-insight-grid svg{color:#5084c4}
+.product-insight-grid span{color:#8295ab;font-size:10px}
+.product-insight-grid strong{color:#253c58;font-size:14px}
+.product-history{max-height:200px;overflow-y:auto}
+.product-history>div{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid #eff2f7}
+.history-icon{height:31px;width:31px;display:grid;place-items:center;border-radius:9px}
+.history-icon.green{color:#25906f;background:#e8f8f0}
+.history-icon.orange{color:#c97e4b;background:#fff1e7}
+.product-history>div>span:nth-child(2){flex:1}
+.product-history strong,.product-history small{display:block;font-size:11px}
+.product-history strong{color:#2d4661}
+.product-history small{font-size:10px;color:#94a3b4;margin-top:4px}
+.product-history b{font-size:12px}
+.edit-variant-title{margin:22px 0 10px}
+.edit-product-list{display:grid;gap:11px;max-height:360px;overflow-y:auto}
+.edit-product-row{display:grid;grid-template-columns:.8fr 1fr 1fr 1fr .75fr;gap:9px;align-items:end;padding:13px 11px;border:1px solid #e5ebf4;background:#f8fafd;border-radius:10px}
+.edit-product-row label{display:grid;gap:7px;min-width:0;font-size:10px;color:#7588a0;font-weight:750}
+.edit-product-row input{min-width:0;width:100%;height:39px;border:1px solid #dfe6f0;background:white;border-radius:7px;padding:0 8px;font-size:11px;color:#263e5c;outline:0}
+.edit-product-row input:focus{border-color:#7aa6df}
+.read-only-stock{height:39px;background:#edf2f7;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#6d8199;font-size:12px}
+@media(max-width:1360px){.clients-layout{grid-template-columns:1fr}.customer-summary-grid{gap:10px}}
+@media(max-width:1120px){.product-insight-grid{grid-template-columns:repeat(2,1fr)}.edit-product-row{grid-template-columns:repeat(3,1fr)}.customer-summary-grid{grid-template-columns:repeat(2,1fr)}}
