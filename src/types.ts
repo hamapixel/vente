@@ -145,3 +145,13 @@ export interface ProductMovement {
   delta: number;
   reason: string;
 }
+
+export interface CustomerSale {
+  id: number;
+  reference: string;
+  createdAt: string;
+  total: number;
+  paid: number;
+  remaining: number;
+  paymentMethod: string;
+}
