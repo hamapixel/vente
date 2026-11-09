@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
-  Activity, ArrowRight, BadgeCheck, BarChart3,
+  Activity, ArrowLeft, ArrowRight, BadgeCheck, BarChart3,
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
-  Download, FileText, LayoutDashboard, Minus, MoreHorizontal, Package,
+  Download, FileText, LayoutDashboard, LogOut, Minus, MoreHorizontal, Package, Printer,
   PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart,
   TrendingUp, Trash2, Wallet, X
 } from "lucide-react";
 import { api } from "./api";
-import type { CartLine, Dashboard, NewProduct, Receipt, ReportDay, Sale, Shop, Variant } from "./types";
+import LoginScreen from "./LoginScreen";
+import ReceiptView from "./ReceiptView";
+import type { CartLine, Dashboard, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
 
 type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "reports" | "settings";
 type ProductGroup = { id: number; name: string; category: string; variants: Variant[] };
@@ -20,7 +22,12 @@ const localDate = (d = new Date()) =>
 const number = (n: string) => Math.max(0, Math.floor(Number(n) || 0));
 const showError = (e: unknown) => typeof e === "string" ? e : e instanceof Error ? e.message : "Une erreur est survenue.";
 const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0 };
-const blankShop: Shop = { name: "Ma boutique", phone: "", address: "" };
+const blankShop: Shop = { name: "Ma boutique", phone: "", address: "", logoData: "", receiptHeader: "", receiptFooter: "Merci pour votre achat !", receiptFormat: "ticket" };
+const sampleReceipt: ReceiptDocument = {
+  reference: "VT-EXEMPLE", createdAt: "2026-11-09T12:00:00", paymentMethod: "Espèces",
+  subtotal: 10000, discount: 500, total: 9500,
+  lines: [{ name: "Maillot de football", variant: "L / Bleu", quantity: 1, unitPrice: 10000, lineTotal: 10000 }]
+};
 const isBrowserPreview = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
 const categories = ["Maillots", "T-shirts", "Chemises", "Polos", "Jeans", "Pantalons", "Robes", "Chaussures", "Accessoires", "Autres"];
 const navigation = [
@@ -42,6 +49,11 @@ function Stat({ title, value, hint, icon: Icon, variant = "" }: { title: string;
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
+  const [navHistory, setNavHistory] = useState<Page[]>([]);
+  const [session, setSession] = useState<UserSession | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [ticketView, setTicketView] = useState<ReceiptDocument | null>(null);
   const [catalog, setCatalog] = useState<Variant[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard>(blankDashboard);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -75,8 +87,63 @@ export default function App() {
     setCatalog(items); setDashboard(stats); setSales(history); setShop(profile); setLoaded(true);
   }, []);
   const loadReport = useCallback(async () => setReport(await api.getReport(from, to)), [from, to]);
-  useEffect(() => { if (isBrowserPreview) { setLoaded(true); return; } void reload().catch(e => notify(showError(e), "error")); }, [reload]);
-  useEffect(() => { if (isBrowserPreview) return; void loadReport().catch(e => notify(showError(e), "error")); }, [loadReport]);
+  useEffect(() => {
+    if (isBrowserPreview) { setAuthReady(true); return; }
+    void api.authStatus().then(status => {
+      setSetupRequired(status.setupRequired);
+      setSession(status.user);
+      setAuthReady(true);
+    }).catch(e => { notify(showError(e), "error"); setAuthReady(true); });
+  }, []);
+  useEffect(() => {
+    if (!session || isBrowserPreview) return;
+    void reload().catch(e => notify(showError(e), "error"));
+  }, [session, reload]);
+  useEffect(() => {
+    if (!session || isBrowserPreview) return;
+    void loadReport().catch(e => notify(showError(e), "error"));
+  }, [session, loadReport]);
+
+  function navigate(target: Page) {
+    if (target === page) return;
+    setNavHistory(history => [...history.slice(-14), page]);
+    setPage(target);
+  }
+  function goBack() {
+    if (!navHistory.length) return;
+    const last = navHistory[navHistory.length - 1];
+    setNavHistory(history => history.slice(0, -1));
+    setPage(last);
+  }
+  async function doLogout() {
+    try {
+      await api.logout();
+      setSession(null); setAuthReady(true); setNavHistory([]); setPage("dashboard");
+      setCatalog([]); setSales([]); setDashboard(blankDashboard); setShop(blankShop);
+      setCart([]); setReceipt(null); setTicketView(null); setNotice(null); setLoaded(false);
+    } catch (e) { notify(showError(e), "error"); }
+  }
+  async function openTicket(id: number) {
+    try {
+      const doc = await api.getReceipt(id);
+      setTicketView(doc);
+    } catch (e) { notify(showError(e), "error"); }
+  }
+  function loadLogo(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 450 * 1024) {
+      notify("Choisissez un logo PNG, JPG ou WebP de moins de 450 Ko.", "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") setShop(current => ({ ...current, logoData: reader.result as string }));
+    };
+    reader.onerror = () => notify("Impossible de lire le logo.", "error");
+    reader.readAsDataURL(file);
+  }
 
   const products = useMemo<ProductGroup[]>(() => {
     const map = new Map<number, ProductGroup>();
@@ -207,31 +274,34 @@ export default function App() {
     catch (e) { notify(showError(e), "error"); }
     finally { setBusy(false); }
   }
-  const recentTable = (rows: Sale[]) => <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Date</th><th>Paiement</th><th>Vente</th><th>Marge brute</th></tr></thead><tbody>
-    {rows.map(s => <tr key={s.id}><td className="strong-cell">{s.reference}</td><td>{s.createdAt.slice(0, 16).replace("T", " ")}</td><td><span className="mini-pill">{s.paymentMethod}</span></td><td className="strong-cell">{money(s.total)}</td><td className={s.total - s.totalCost >= 0 ? "positive" : "negative"}>{money(s.total - s.totalCost)}</td></tr>)}
+  const recentTable = (rows: Sale[]) => <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Date</th><th>Paiement</th><th>Vente</th><th>Marge brute</th><th>Ticket</th></tr></thead><tbody>
+    {rows.map(s => <tr key={s.id}><td className="strong-cell">{s.reference}</td><td>{s.createdAt.slice(0, 16).replace("T", " ")}</td><td><span className="mini-pill">{s.paymentMethod}</span></td><td className="strong-cell">{money(s.total)}</td><td className={s.total - s.totalCost >= 0 ? "positive" : "negative"}>{money(s.total - s.totalCost)}</td><td><button className="table-action" onClick={()=>void openTicket(s.id)}><Printer size={15}/> Ticket</button></td></tr>)}
   </tbody></table></div>;
 
-  return <div className="shell">
+  if (!authReady) return <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Initialisation de ModeStock Local…</strong></div>;
+  if (!session) return <LoginScreen setup={setupRequired} browserPreview={isBrowserPreview} onSuccess={user => { setSetupRequired(false); setSession(user); }}/>;
+  return <>
+  <div className="shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><Shirt size={23} strokeWidth={2.2}/></div><div><strong>ModeStock</strong><span>LOCAL · BOUTIQUE</span></div></div>
       <div className="sidebar-label">ESPACE DE GESTION</div>
       <nav className="nav-list">{navigation.map(item => {
         const Icon = item.icon;
-        return <button key={item.id} className={"nav-link " + (page === item.id ? "active" : "")} onClick={() => setPage(item.id)}>
+        return <button key={item.id} className={"nav-link " + (page === item.id ? "active" : "")} onClick={() => navigate(item.id)}>
           <Icon size={19} strokeWidth={1.9}/><span>{item.label}</span>{page === item.id && <span className="active-dot"/>}
         </button>;
       })}</nav>
-      <div className="sidebar-bottom"><div className="offline-indicator"><span className="live-dot"/> Mode hors ligne actif</div><div className="sidebar-footer"><span className="avatar-small"><Shirt size={18}/></span><span><strong>{shop.name}</strong><small>Gestion locale sécurisée</small></span><MoreHorizontal size={18}/></div></div>
+      <div className="sidebar-bottom"><div className="offline-indicator"><span className="live-dot"/> Mode hors ligne actif</div><button className="logout-sidebar" onClick={()=>void doLogout()}><LogOut size={17}/> Déconnexion</button><div className="sidebar-footer"><span className="avatar-small"><Shirt size={18}/></span><span><strong>{shop.name}</strong><small>{session.username} · Administrateur</small></span><MoreHorizontal size={18}/></div></div>
     </aside>
     <main className="main">
       <header className="topbar">
-        <div className="breadcrumb"><span>ModeStock Local</span><span>/</span><strong>{navigation.find(n => n.id === page)?.label}</strong></div>
-        <div className="topbar-actions"><div className="date-badge"><CalendarDays size={16}/>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div><span className="top-avatar">ML</span></div>
+        <div className="breadcrumb"><button type="button" className="back-nav" onClick={goBack} disabled={!navHistory.length} aria-label="Retour à la page précédente" title="Retour"><ArrowLeft size={18}/></button><span>ModeStock Local</span><span>/</span><strong>{navigation.find(n => n.id === page)?.label}</strong></div>
+        <div className="topbar-actions"><div className="date-badge"><CalendarDays size={16}/>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div><span className="top-avatar">{session.username.slice(0,2).toUpperCase()}</span></div>
       </header>
       <div className="content">
         {isBrowserPreview && <div className="browser-warning"><CircleAlert size={19}/><span><strong>Aperçu navigateur uniquement.</strong> Pour enregistrer des ventes et accéder à SQLite, lancez <code>npm run tauri dev</code> et utilisez la fenêtre de l'application, pas l'onglet localhost.</span></div>}
         {page === "dashboard" && <>
-          <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Voici l'activité de votre boutique aujourd'hui.</p></div><button className="primary-btn" onClick={() => setPage("pos")}><Plus size={18}/> Nouvelle vente</button></div>
+          <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Voici l'activité de votre boutique aujourd'hui.</p></div><button className="primary-btn" onClick={() => navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
           <div className="stats-grid">{cards.map(c => <Stat key={c.title} {...c}/>)}</div>
           <div className="dashboard-grid">
             <section className="panel"><div className="section-heading"><div><h2>Activité commerciale</h2><p>Les chiffres clés de votre boutique</p></div><span className="soft-label">Aujourd'hui</span></div>
@@ -239,12 +309,12 @@ export default function App() {
               <div className="callout"><div className="callout-icon"><BadgeCheck size={20}/></div><div><strong>Vos chiffres sont enregistrés localement</strong><p>ModeStock fonctionne sans connexion Internet, directement sur cet ordinateur.</p></div></div>
             </section>
             <section className="panel quick-panel"><div className="section-heading"><div><h2>Actions rapides</h2><p>Gagnez du temps au quotidien</p></div></div>
-              <button className="quick-action" onClick={() => setPage("pos")}><span className="quick-icon blue"><ShoppingCart size={20}/></span><span><strong>Effectuer une vente</strong><small>Ouvrir la caisse</small></span><ArrowRight size={17}/></button>
+              <button className="quick-action" onClick={() => navigate("pos")}><span className="quick-icon blue"><ShoppingCart size={20}/></span><span><strong>Effectuer une vente</strong><small>Ouvrir la caisse</small></span><ArrowRight size={17}/></button>
               <button className="quick-action" onClick={() => setAddModal(true)}><span className="quick-icon green"><Plus size={20}/></span><span><strong>Ajouter un vêtement</strong><small>Tailles, couleurs et quantités</small></span><ArrowRight size={17}/></button>
               <button className="quick-action" onClick={() => setExpenseModal(true)}><span className="quick-icon orange"><Wallet size={20}/></span><span><strong>Enregistrer une dépense</strong><small>Suivre votre résultat</small></span><ArrowRight size={17}/></button>
             </section>
           </div>
-          <section className="panel"><div className="section-heading"><div><h2>Dernières ventes</h2><p>Historique des transactions récentes</p></div><button className="text-link" onClick={() => setPage("sales")}>Tout voir <ArrowRight size={16}/></button></div>
+          <section className="panel"><div className="section-heading"><div><h2>Dernières ventes</h2><p>Historique des transactions récentes</p></div><button className="text-link" onClick={() => navigate("sales")}>Tout voir <ArrowRight size={16}/></button></div>
             {sales.length ? recentTable(sales.slice(0, 6)) : <Empty title="Aucune vente pour le moment" description="Ouvrez la caisse pour enregistrer votre première vente." icon={ShoppingBag}/>}
           </section>
         </>}
@@ -290,10 +360,25 @@ export default function App() {
         </>}
 
         {page === "settings" && <>
-          <div className="page-heading"><div><div className="eyebrow">CONFIGURATION LOCALE</div><h1>Paramètres de la boutique</h1><p>Personnalisez les informations qui apparaîtront sur vos documents.</p></div></div>
-          <div className="settings-layout">
-            <section className="panel"><div className="section-heading"><div><h2>Profil de la boutique</h2><p>Informations générales</p></div></div><form className="form-grid" onSubmit={doSaveShop}><label>Nom de la boutique<input required value={shop.name} onChange={e=>setShop({...shop,name:e.target.value})}/></label><label>Téléphone<input value={shop.phone} onChange={e=>setShop({...shop,phone:e.target.value})}/></label><label>Adresse<input value={shop.address} onChange={e=>setShop({...shop,address:e.target.value})}/></label><button className="primary-btn" disabled={busy}><Check size={17}/> Enregistrer</button></form></section>
-            <section className="panel"><div className="section-heading"><div><h2>Sauvegardes locales</h2><p>Protégez votre historique de vente</p></div><DatabaseBackup size={23} className="accent-icon"/></div><p className="backup-copy">Créer une copie cohérente de votre base SQLite. Cette copie reste sur le même ordinateur : transférez-la régulièrement sur une clé USB externe.</p><button className="secondary-btn" disabled={busy} onClick={doBackup}><Download size={17}/> Créer une sauvegarde locale</button><div className="warning-note"><CircleAlert size={17}/> La restauration et l'export direct vers un disque externe seront ajoutés avant la version commerciale.</div></section>
+          <div className="page-heading"><div><div className="eyebrow">IDENTITÉ DE VOTRE BOUTIQUE</div><h1>Profil et documents</h1><p>Personnalisez le logo, les coordonnées, les factures et les tickets.</p></div></div>
+          <div className="settings-layout branding-layout">
+            <section className="panel">
+              <div className="section-heading"><div><h2>Identité commerciale</h2><p>Informations imprimées sur les documents</p></div></div>
+              <form className="form-grid" onSubmit={doSaveShop}>
+                <label>Nom de la boutique<input required maxLength={120} value={shop.name} onChange={e=>setShop({...shop,name:e.target.value})}/></label>
+                <label>Téléphone<input maxLength={80} value={shop.phone} placeholder="Ex. +223 ..." onChange={e=>setShop({...shop,phone:e.target.value})}/></label>
+                <label>Adresse<input maxLength={250} value={shop.address} placeholder="Ex. Bamako, quartier..." onChange={e=>setShop({...shop,address:e.target.value})}/></label>
+                <div className="logo-chooser"><div className="logo-current">{shop.logoData ? <img src={shop.logoData} alt="Logo actuel"/> : <Shirt size={28}/>}</div><div><strong>Logo de la boutique</strong><p>PNG, JPG ou WebP · 450 Ko maximum</p><label className="logo-upload">Choisir un logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={loadLogo}/></label>{shop.logoData && <button type="button" className="logo-remove" onClick={()=>setShop({...shop,logoData:""})}>Supprimer le logo</button>}</div></div>
+                <label>En-tête de la facture / du ticket<textarea rows={3} maxLength={350} placeholder="Ex. Prêt-à-porter pour toute la famille" value={shop.receiptHeader} onChange={e=>setShop({...shop,receiptHeader:e.target.value})}/></label>
+                <label>Message en pied de ticket<textarea rows={2} maxLength={350} placeholder="Ex. Merci pour votre confiance !" value={shop.receiptFooter} onChange={e=>setShop({...shop,receiptFooter:e.target.value})}/></label>
+                <label>Format de document<select value={shop.receiptFormat} onChange={e=>setShop({...shop,receiptFormat:e.target.value as Shop["receiptFormat"]})}><option value="ticket">Ticket thermique (80 mm)</option><option value="a4">Facture / Reçu A4</option></select></label>
+                <button type="submit" disabled={busy} className="primary-btn"><Check size={17}/> Enregistrer les paramètres</button>
+              </form>
+            </section>
+            <div className="settings-side">
+              <section className="panel"><div className="section-heading"><div><h2>Aperçu du document</h2><p>Prévisualisation avec des données d'exemple</p></div><Printer size={19}/></div><div className="settings-ticket-preview"><ReceiptView shop={shop} receipt={sampleReceipt}/></div><p className="settings-preview-hint">Enregistrez les paramètres pour les utiliser sur les prochains tickets.</p></section>
+              <section className="panel"><div className="section-heading"><div><h2>Sauvegardes locales</h2><p>Protégez votre historique de vente</p></div><DatabaseBackup size={23} className="accent-icon"/></div><p className="backup-copy">Créez une copie cohérente de SQLite et transférez-la ensuite sur une clé USB distincte.</p><button className="secondary-btn" type="button" disabled={busy} onClick={doBackup}><Download size={17}/> Créer une sauvegarde locale</button><div className="warning-note"><CircleAlert size={17}/> La restauration et l'export direct sur clé USB restent à finaliser.</div></section>
+            </div>
           </div>
         </>}
         <footer className="footer"><span>ModeStock Local <b>v0.1.0</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
@@ -342,9 +427,13 @@ export default function App() {
 
     {expenseModal && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setExpenseModal(false);}}><form className="modal small-modal" onSubmit={doAddExpense}><div className="modal-header"><div><span className="eyebrow">DÉPENSE DE BOUTIQUE</span><h2>Nouvelle dépense</h2><p>Suivez les frais qui réduisent votre résultat net.</p></div><button type="button" className="icon-button" onClick={()=>setExpenseModal(false)}><X size={20}/></button></div><div className="form-grid"><label>Description<input required placeholder="Ex. Transport des marchandises" value={expenseLabel} onChange={e=>setExpenseLabel(e.target.value)}/></label><label>Montant (FCFA)<input required type="number" min="1" value={expenseAmount} onChange={e=>setExpenseAmount(e.target.value)}/></label></div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setExpenseModal(false)}>Annuler</button><button disabled={busy} className="primary-btn">Enregistrer</button></div></form></div>}
 
-    {receipt && <div className="modal-overlay"><div className="modal small-modal receipt-modal"><div className="receipt-check"><Check size={30}/></div><h2>Vente enregistrée !</h2><p>La transaction a été sauvegardée localement.</p><div className="receipt-details"><span>Référence</span><strong>{receipt.reference}</strong><span>Montant encaissé</span><strong>{money(receipt.total)}</strong></div><p className="receipt-warning">L'impression du reçu sera intégrée avant la version commerciale.</p><button className="primary-btn full-width" onClick={()=>setReceipt(null)}>Continuer <ArrowRight size={18}/></button></div></div>}
+    {receipt && <div className="modal-overlay"><div className="modal small-modal receipt-modal"><div className="receipt-check"><Check size={30}/></div><h2>Vente enregistrée !</h2><p>La transaction a été sauvegardée localement.</p><div className="receipt-details"><span>Référence</span><strong>{receipt.reference}</strong><span>Montant encaissé</span><strong>{money(receipt.total)}</strong></div><div className="receipt-buttons"><button type="button" className="secondary-btn" onClick={()=>setReceipt(null)}>Continuer</button><button type="button" className="primary-btn" onClick={()=>{const id=receipt.id;setReceipt(null);void openTicket(id);}}><Printer size={17}/> Voir le ticket</button></div></div></div>}
+    {ticketView && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setTicketView(null);}}><div className="modal ticket-modal"><div className="modal-header"><div><span className="eyebrow">DOCUMENT DE VENTE</span><h2>{shop.receiptFormat==="a4"?"Facture / Reçu":"Ticket de caisse"}</h2><p>Vente {ticketView.reference}</p></div><button className="icon-button" type="button" onClick={()=>setTicketView(null)} aria-label="Fermer"><X size={20}/></button></div><div className="ticket-modal-scroll"><ReceiptView shop={shop} receipt={ticketView}/></div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setTicketView(null)}><ArrowLeft size={16}/> Retour</button><button type="button" className="primary-btn" onClick={()=>window.print()}><Printer size={17}/> Imprimer</button></div></div></div>}
+
 
     {notice && <div className={"toast "+notice.kind}><span>{notice.kind === "success" ? <Check size={17}/> : <CircleAlert size={17}/>}</span><div>{notice.text}</div><button onClick={()=>setNotice(null)} aria-label="Fermer"><X size={16}/></button></div>}
     {!loaded && !notice && <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Ouverture de ModeStock Local…</strong></div>}
-  </div>;
+  </div>
+  {ticketView && <div className="print-only"><ReceiptView shop={shop} receipt={ticketView}/></div>}
+  </>;
 }
