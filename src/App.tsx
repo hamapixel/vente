@@ -10,6 +10,7 @@ import { api } from "./api";
 import { matchesProduct, matchesVariant } from "./search";
 import LoginScreen from "./LoginScreen";
 import CustomersPanel, { CustomerEditor, PaymentDialog, type PaymentTarget } from "./CustomersPanel";
+import CustomerSearchPicker from "./CustomerSearchPicker";
 import ProductDetailModal from "./ProductDetailModal";
 import ReceiptView from "./ReceiptView";
 import type { CartLine, Customer, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
@@ -390,10 +391,7 @@ export default function App() {
               <div className="cart-summary">
                 <label className="field-label">Client (facultatif pour une vente comptant)</label>
                 <div className="cart-customer-row">
-                  <select aria-label="Client de la vente" value={customerId ?? ""} onChange={e=>setCustomerId(e.target.value?Number(e.target.value):null)}>
-                    <option value="">Client de passage</option>
-                    {customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.balance>0?" · Dette "+money(c.balance):""}</option>)}
-                  </select>
+                  <CustomerSearchPicker customers={customers} value={customerId} onChange={setCustomerId} />
                   <button className="quick-customer-add" type="button" title="Créer un client" aria-label="Créer un client" onClick={addCustomer}><Plus size={18}/></button>
                 </div>
                 <div className="summary-row"><span>Sous-total</span><strong>{money(subtotal)}</strong></div><label className="discount-field">Remise (FCFA)<input type="number" min="0" max={subtotal} value={discount} onChange={e => setDiscount(number(e.target.value))}/></label><div className="summary-row big-total"><span>Total de la vente</span><strong>{money(total)}</strong></div>
