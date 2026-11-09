@@ -2,7 +2,7 @@ use chrono::Local;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::{rand_core::OsRng, SaltString}};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs, sync::Mutex, time::Duration};
+use std::{collections::BTreeMap, fs, sync::Mutex, time::{Duration, Instant}};
 use tauri::{Manager, State};
 
 struct Db(Mutex<Connection>);
@@ -11,6 +11,39 @@ struct Db(Mutex<Connection>);
 #[serde(rename_all = "camelCase")]
 struct SessionInfo { username: String, role: String }
 struct Auth(Mutex<Option<SessionInfo>>);
+#[derive(Default)]
+struct LoginGuard(Mutex<FailedLogin>);
+
+#[derive(Default)]
+struct FailedLogin {
+    attempts: u32,
+    locked_until: Option<Instant>,
+}
+fn check_login_attempt(guard: &LoginGuard) -> Result<(), String> {
+    let mut state = guard.0.lock().map_err(error)?;
+    if let Some(until) = state.locked_until {
+        if let Some(remaining) = until.checked_duration_since(Instant::now()) {
+            return Err(format!("Trop de tentatives. Réessayez dans {} secondes.", remaining.as_secs()+1));
+        }
+        state.attempts = 0;
+        state.locked_until = None;
+    }
+    Ok(())
+}
+fn record_failed_login(guard: &LoginGuard) -> Result<(), String> {
+    let mut state = guard.0.lock().map_err(error)?;
+    state.attempts = state.attempts.saturating_add(1);
+    if state.attempts >= 5 {
+        state.locked_until = Some(Instant::now() + Duration::from_secs(60));
+    }
+    Ok(())
+}
+fn clear_failed_login(guard: &LoginGuard) -> Result<(), String> {
+    let mut state = guard.0.lock().map_err(error)?;
+    *state = FailedLogin::default();
+    Ok(())
+}
+
 
 fn require_auth(auth: &State<'_, Auth>) -> Result<SessionInfo, String> {
     auth.0.lock().map_err(error)?.clone().ok_or("Connexion requise.".to_string())
@@ -33,6 +66,19 @@ fn auth_status(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<AuthStatus,St
     let count: i64 = conn.query_row("SELECT COUNT(*) FROM users",[],|r|r.get(0)).map_err(error)?;
     let user=auth.0.lock().map_err(error)?.clone();
     Ok(AuthStatus{setup_required:count==0,user})
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LoginBrand { name: String, logo_data: String }
+
+#[tauri::command]
+fn get_login_brand(db: State<'_, Db>) -> Result<LoginBrand,String> {
+    let conn=db.0.lock().map_err(error)?;
+    conn.query_row(
+        "SELECT s.name, b.logo_data FROM shops s JOIN shop_branding b ON b.shop_id = s.id WHERE s.id=1",
+        [], |row| Ok(LoginBrand{name:row.get(0)?,logo_data:row.get(1)?})
+    ).map_err(error)
 }
 
 #[tauri::command]
@@ -58,17 +104,28 @@ fn register_admin(db: State<'_, Db>, auth: State<'_, Auth>, username: String, pa
 }
 
 #[tauri::command]
-fn login(db: State<'_, Db>, auth: State<'_, Auth>, username: String, password: String) -> Result<SessionInfo,String> {
+fn login(db: State<'_, Db>, auth: State<'_, Auth>, guard: State<'_, LoginGuard>, username: String, password: String) -> Result<SessionInfo,String> {
+    check_login_attempt(&guard)?;
     let conn=db.0.lock().map_err(error)?;
     let row=conn.query_row("SELECT username,password_hash,role FROM users WHERE username=?1 COLLATE NOCASE",
-        params![username.trim()],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?))
+        params![username.trim()], |r| Ok((
+            r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?
+        ))
     ).optional().map_err(error)?;
-    let (name,hash,role)=row.ok_or("Identifiant ou mot de passe incorrect.")?;
-    let parsed=PasswordHash::new(&hash).map_err(error)?;
-    if Argon2::default().verify_password(password.as_bytes(),&parsed).is_err() {
+    let credentials = row.and_then(|(name,hash,role)| {
+        PasswordHash::new(&hash).ok().and_then(|parsed| {
+            if Argon2::default().verify_password(password.as_bytes(), &parsed).is_ok() {
+                Some(SessionInfo {username:name,role})
+            } else { None }
+        })
+    });
+    let session = if let Some(session) = credentials {
+        clear_failed_login(&guard)?;
+        session
+    } else {
+        record_failed_login(&guard)?;
         return Err("Identifiant ou mot de passe incorrect.".into());
-    }
-    let session=SessionInfo{username:name,role};
+    };
     *auth.0.lock().map_err(error)?=Some(session.clone());
     Ok(session)
 }
@@ -588,13 +645,14 @@ pub fn run() {
             init_db(&conn)?;
             app.manage(Db(Mutex::new(conn)));
             app.manage(Auth(Mutex::new(None)));
+            app.manage(LoginGuard(Mutex::new(FailedLogin::default())));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_catalog,create_product,adjust_stock,checkout,
             get_dashboard,get_sales,get_report,add_expense,
             get_shop,update_shop,backup_now,get_receipt,
-            auth_status,register_admin,login,logout
+            auth_status,get_login_brand,register_admin,login,logout
         ])
         .run(tauri::generate_context!())
         .expect("Erreur de lancement de ModeStock Local");
