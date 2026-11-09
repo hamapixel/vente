@@ -1,10 +1,10 @@
-# VestiFlow 0.2.0 — Tester une mise à niveau sans perte de données
+# VestiFlow 0.2.1 — Tester une mise à niveau sans perte de données
 
 Ce protocole concerne uniquement un PC de démonstration. Ne pas utiliser une unique base de ventes réelles pour essayer une mise à niveau.
 
 ## Données conservées
 
-- Nouveau nom affiché et installateur : **VestiFlow**, version **0.2.0**.
+- Nouveau nom affiché et installateur : **VestiFlow**, version **0.2.1**.
 - Identifiant Tauri INCHANGÉ : ml.modestock.local.
 - Fichier SQLite INCHANGÉ : %LOCALAPPDATA%\ml.modestock.local\modestock.db.
 - Données existantes conservées : produits, variantes, stocks, ventes, fiches clients, dettes, paiements, compte administrateur, logo et paramètres.
@@ -52,14 +52,14 @@ npm run tauri build
 Get-ChildItem ".\src-tauri\target\release\bundle\nsis" -Filter "VestiFlow*setup.exe"
 ~~~
 
-Copier VestiFlow_0.2.0_x64-setup.exe sur clé USB. Ne pas confondre avec l'ancien installateur ModeStock Local_0.1.0.
+Copier VestiFlow_0.2.1_x64-setup.exe sur clé USB. Ne pas confondre avec l'ancien installateur ModeStock Local_0.1.0.
 
 ## 3. Installer sur le deuxième PC
 
 1. Se connecter au MÊME compte Windows que l'ancien logiciel.
 2. Vérifier que ModeStock Local est totalement fermé.
 3. NE PAS désinstaller ModeStock Local pour l'instant.
-4. Lancer l'installateur VestiFlow 0.2.0. Il peut afficher une seconde entrée dans Applications installées car le nom commercial Windows change.
+4. Lancer l'installateur VestiFlow 0.2.1. Il peut afficher une seconde entrée dans Applications installées car le nom commercial Windows change.
 5. Ne pas demander à un client de désactiver la sécurité Windows pour passer les avertissements d'un installateur non signé.
 
 ## 4. Vérifier APRÈS la mise à jour
