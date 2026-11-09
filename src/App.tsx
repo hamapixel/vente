@@ -54,6 +54,8 @@ function Stat({ title, value, hint, icon: Icon, variant = "" }: { title: string;
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (contentScrollRef.current) contentScrollRef.current.scrollTop = 0; }, [page]);
   const [navHistory, setNavHistory] = useState<Page[]>([]);
   const [session, setSession] = useState<UserSession | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -359,7 +361,7 @@ export default function App() {
         <div className="breadcrumb"><button type="button" className="back-nav" onClick={goBack} disabled={!navHistory.length} aria-label="Retour à la page précédente" title="Retour"><ArrowLeft size={18}/></button><span>VestiFlow</span><span>/</span><strong>{navigation.find(n => n.id === page)?.label}</strong></div>
         <div className="topbar-actions"><div className="date-badge"><CalendarDays size={16}/>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div><span className="top-avatar">{session.username.slice(0,2).toUpperCase()}</span></div>
       </header>
-      <div className="content">
+      <div className="content" ref={contentScrollRef}>
         {isBrowserPreview && <div className="browser-warning"><CircleAlert size={19}/><span><strong>Aperçu navigateur uniquement.</strong> Pour enregistrer des ventes et accéder à SQLite, lancez <code>npm run tauri dev</code> et utilisez la fenêtre de l'application, pas l'onglet localhost.</span></div>}
         {page === "dashboard" && <>
           <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Voici l'activité de votre boutique aujourd'hui.</p></div><button className="primary-btn" onClick={() => navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
