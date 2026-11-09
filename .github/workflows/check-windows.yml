@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - feature/modestock-local-foundation
+      - main
 
 jobs:
   verify:
@@ -20,6 +20,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Installer les dependances
         run: npm install
+      - name: Controle des vulnérabilités npm (toutes les dépendances)
+        run: npm audit --audit-level=moderate
+      - name: Controle des dépendances embarquées
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Generer les icones Windows
         run: npm run tauri icon public/brand.svg
       - name: Verifier TypeScript et Vite
