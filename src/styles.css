@@ -466,9 +466,10 @@ html,body,#root{height:100%;height:100dvh;max-height:100dvh;overflow:hidden}
   align-self:stretch;
   height:100%;max-height:100%;
   min-height:0;
-  overflow-y:auto;
-  overflow-x:hidden;
-  overscroll-behavior-y:contain;
+  /* Jamais de défilement sur la barre latérale : logo et liens immobiles. */
+  overflow:hidden;
+  overscroll-behavior:none;
+  user-select:none;
   scrollbar-width:none;
 }
 .shell>.sidebar::-webkit-scrollbar{display:none}
@@ -512,6 +513,50 @@ html,body,#root{height:100%;height:100dvh;max-height:100dvh;overflow:hidden}
 }
 .shell .cart-panel{top:14px}
 @media(max-width:780px){.shell .cart-panel{position:relative;top:auto}}
+/* Le menu tient dans une fenêtre ProBook sans devoir être déplacé avec la molette.
+   Les tailles se réduisent selon la hauteur réellement disponible. */
+.shell>.sidebar{padding:15px 13px 10px}
+.shell>.sidebar .brand,
+.shell>.sidebar .sidebar-label,
+.shell>.sidebar .nav-list,
+.shell>.sidebar .sidebar-bottom{flex-shrink:0}
+.shell>.sidebar .brand{padding:0 8px 12px}
+.shell>.sidebar .sidebar-label{padding:7px 12px 8px}
+.shell>.sidebar .nav-list{gap:3px}
+.shell>.sidebar .nav-link{height:clamp(31px,5.4dvh,42px)}
+.shell>.sidebar .offline-indicator{padding:9px;margin:0 2px 7px}
+.shell>.sidebar .logout-sidebar{padding:8px 12px;margin-bottom:1px}
+.shell>.sidebar .sidebar-footer{padding-top:8px}
+@media(max-height:640px){
+  .shell>.sidebar{padding-top:9px;padding-bottom:8px}
+  .shell>.sidebar .brand{padding-bottom:6px}
+  .shell>.sidebar .sidebar-label{padding-top:5px;padding-bottom:5px}
+  .shell>.sidebar .nav-list{gap:2px}
+  .shell>.sidebar .nav-link{height:clamp(31px,5.5dvh,37px)}
+}
+@media(max-height:560px){
+  /* Priorité aux huit pages et à la déconnexion. */
+  .shell>.sidebar .offline-indicator,
+  .shell>.sidebar .sidebar-footer{display:none}
+  .shell>.sidebar .sidebar-bottom{margin-top:auto}
+}
+@media(max-height:430px){
+  .shell>.sidebar .sidebar-label{display:none}
+  .shell>.sidebar .brand{padding-bottom:4px}
+  .shell>.sidebar .nav-list{gap:1px}
+  .shell>.sidebar .nav-link{height:30px}
+  .shell>.sidebar .logout-sidebar{padding-block:5px}
+}
+@media(max-width:940px){
+  .shell>.sidebar{padding-inline:8px}
+  .shell>.sidebar .brand{padding-inline:0}
+  .shell>.sidebar .nav-link{margin-inline:auto}
+  .shell>.sidebar .logout-sidebar{padding-inline:0}
+}
+@media(max-width:560px){
+  .shell>.sidebar{padding-inline:5px}
+}
+
 /* Le login possède son propre défilement vertical dans les petites résolutions. */
 .compact-login-page{height:100vh;height:100dvh;min-height:0;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
 @media print{
