@@ -56,6 +56,6 @@ export function matchesCustomer(
 ): boolean {
   const words = searchTerms(query);
   if (!words.length) return true;
-  const searchable = normalizeSearch([customer.name, customer.phone, customer.address].join(" "));
+  const searchable = normalizeSearch([customer.name, customer.phone, customer.phone.replace(/\D/g, ""), customer.address].join(" "));
   return words.every(word => searchable.includes(word));
 }
