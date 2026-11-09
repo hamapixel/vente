@@ -1,0 +1,32 @@
+name: Verification Windows
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feature/modestock-local-foundation
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Installer Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Installer les dependances
+        run: npm install
+      - name: Generer les icones Windows
+        run: npm run tauri icon public/brand.svg
+      - name: Verifier TypeScript et Vite
+        run: npm run build
+      - name: Tester la recherche des produits et chaussures
+        run: npm run test
+      - name: Verifier Rust et Tauri
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Tester la sécurité locale et la préservation SQLite
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
