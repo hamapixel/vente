@@ -21,11 +21,11 @@ if ($LASTEXITCODE -ne 0) { throw "Contrôle Rust échoué" }
 npm run tauri build
 if ($LASTEXITCODE -ne 0) { throw "Compilation Tauri/NSIS échouée" }
 
-$files = @(Get-ChildItem -Path "src-tauri\target\release\bundle\nsis" -Filter "VestiFlow_0.2.0_*setup.exe")
-if ($files.Count -lt 1) { throw "Aucun installateur VestiFlow 0.2.0 détecté : ne pas réutiliser un ancien setup" }
+$files = @(Get-ChildItem -Path "src-tauri\target\release\bundle\nsis" -Filter "VestiFlow_0.2.1_*setup.exe")
+if ($files.Count -lt 1) { throw "Aucun installateur VestiFlow 0.2.1 détecté : ne pas réutiliser un ancien setup" }
 foreach ($file in $files) {
     Write-Host $file.FullName -ForegroundColor Green
     Get-FileHash $file.FullName -Algorithm SHA256 | Format-List
     Get-AuthenticodeSignature $file.FullName | Select-Object Status, StatusMessage | Format-List
 }
-Write-Warning "Installateur VestiFlow 0.2.0 pilote uniquement : sauvegarde externe, validation des données sous le même utilisateur Windows et signature requises avant commercialisation."
+Write-Warning "Installateur VestiFlow 0.2.1 pilote uniquement : sauvegarde externe, validation des données sous le même utilisateur Windows et signature requises avant commercialisation."
