@@ -108,7 +108,7 @@ export default function App() {
   useEffect(() => {
     if (isBrowserPreview) { setAuthReady(true); return; }
     void api.getLoginBrand().then(setLoginBrand).catch(() => {
-      // Conserver le logo ModeStock si aucune identité de boutique n'est disponible.
+      // Conserver le logo VestiFlow si aucune identité de boutique n'est disponible.
     });
     void api.authStatus().then(status => {
       setSetupRequired(status.setupRequired);
@@ -339,12 +339,12 @@ export default function App() {
     </tr>)}
   </tbody></table></div>;
 
-  if (!authReady) return <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Initialisation de ModeStock Local…</strong></div>;
+  if (!authReady) return <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Initialisation de VestiFlow…</strong></div>;
   if (!session) return <LoginScreen setup={setupRequired} browserPreview={isBrowserPreview} brand={loginBrand} onSuccess={user => { setSetupRequired(false); setSession(user); }}/>;
   return <>
   <div className="shell">
     <aside className="sidebar">
-      <div className="brand"><div className="brand-mark"><Shirt size={23} strokeWidth={2.2}/></div><div><strong>ModeStock</strong><span>LOCAL · BOUTIQUE</span></div></div>
+      <div className="brand"><div className="brand-mark"><Shirt size={23} strokeWidth={2.2}/></div><div><strong>VestiFlow</strong><span>GESTION DE BOUTIQUE</span></div></div>
       <div className="sidebar-label">ESPACE DE GESTION</div>
       <nav className="nav-list">{navigation.map(item => {
         const Icon = item.icon;
@@ -356,7 +356,7 @@ export default function App() {
     </aside>
     <main className="main">
       <header className="topbar">
-        <div className="breadcrumb"><button type="button" className="back-nav" onClick={goBack} disabled={!navHistory.length} aria-label="Retour à la page précédente" title="Retour"><ArrowLeft size={18}/></button><span>ModeStock Local</span><span>/</span><strong>{navigation.find(n => n.id === page)?.label}</strong></div>
+        <div className="breadcrumb"><button type="button" className="back-nav" onClick={goBack} disabled={!navHistory.length} aria-label="Retour à la page précédente" title="Retour"><ArrowLeft size={18}/></button><span>VestiFlow</span><span>/</span><strong>{navigation.find(n => n.id === page)?.label}</strong></div>
         <div className="topbar-actions"><div className="date-badge"><CalendarDays size={16}/>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div><span className="top-avatar">{session.username.slice(0,2).toUpperCase()}</span></div>
       </header>
       <div className="content">
@@ -367,7 +367,7 @@ export default function App() {
           <div className="dashboard-grid">
             <section className="panel"><div className="section-heading"><div><h2>Activité commerciale</h2><p>Les chiffres clés de votre boutique</p></div><span className="soft-label">Aujourd'hui</span></div>
               <div className="overview-summary"><div><span>Articles en stock</span><strong>{itemsInStock}</strong></div><div><span>Variantes</span><strong>{dashboard.variantCount}</strong></div><div><span>Ventes</span><strong>{dashboard.salesCount}</strong></div></div>
-              <div className="callout"><div className="callout-icon"><BadgeCheck size={20}/></div><div><strong>Vos chiffres sont enregistrés localement</strong><p>ModeStock fonctionne sans connexion Internet, directement sur cet ordinateur.</p></div></div>
+              <div className="callout"><div className="callout-icon"><BadgeCheck size={20}/></div><div><strong>Vos chiffres sont enregistrés localement</strong><p>VestiFlow fonctionne sans connexion Internet, directement sur cet ordinateur.</p></div></div>
             </section>
             <section className="panel quick-panel"><div className="section-heading"><div><h2>Actions rapides</h2><p>Gagnez du temps au quotidien</p></div></div>
               <button className="quick-action" onClick={() => navigate("pos")}><span className="quick-icon blue"><ShoppingCart size={20}/></span><span><strong>Effectuer une vente</strong><small>Ouvrir la caisse</small></span><ArrowRight size={17}/></button>
@@ -471,7 +471,7 @@ export default function App() {
             </div>
           </div>
         </>}
-        <footer className="footer"><span>ModeStock Local <b>v0.1.0</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
+        <footer className="footer"><span>VestiFlow <b>v0.2.0</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
       </div>
     </main>
 
@@ -531,7 +531,7 @@ export default function App() {
 
 
     {notice && <div className={"toast "+notice.kind}><span>{notice.kind === "success" ? <Check size={17}/> : <CircleAlert size={17}/>}</span><div>{notice.text}</div><button onClick={()=>setNotice(null)} aria-label="Fermer"><X size={16}/></button></div>}
-    {!loaded && !notice && <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Ouverture de ModeStock Local…</strong></div>}
+    {!loaded && !notice && <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Ouverture de VestiFlow…</strong></div>}
   </div>
   {ticketView && <div className="print-only"><ReceiptView shop={shop} receipt={ticketView}/></div>}
   </>;
