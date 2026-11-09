@@ -4,13 +4,14 @@ import {
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
   Download, FileText, LayoutDashboard, Minus, MoreHorizontal, Package,
   PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart,
-  TrendingUp, Wallet, X
+  TrendingUp, Trash2, Wallet, X
 } from "lucide-react";
 import { api } from "./api";
 import type { CartLine, Dashboard, NewProduct, Receipt, ReportDay, Sale, Shop, Variant } from "./types";
 
 type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "reports" | "settings";
 type ProductGroup = { id: number; name: string; category: string; variants: Variant[] };
+type VariantRow = { id: number; size: string; color: string; quantity: string };
 type Notice = { text: string; kind: "success" | "error" } | null;
 const money = (n: number) => new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(n) + " FCFA";
 const localDate = (d = new Date()) =>
@@ -19,6 +20,7 @@ const number = (n: string) => Math.max(0, Math.floor(Number(n) || 0));
 const showError = (e: unknown) => typeof e === "string" ? e : e instanceof Error ? e.message : "Une erreur est survenue.";
 const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0 };
 const blankShop: Shop = { name: "Ma boutique", phone: "", address: "" };
+const isBrowserPreview = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
 const categories = ["Maillots", "T-shirts", "Chemises", "Polos", "Jeans", "Pantalons", "Robes", "Chaussures", "Accessoires", "Autres"];
 const navigation = [
   { id: "dashboard" as const, label: "Vue d'ensemble", icon: LayoutDashboard },
@@ -64,7 +66,7 @@ export default function App() {
   const [to, setTo] = useState(localDate());
   const [report, setReport] = useState<ReportDay[]>([]);
   const [draft, setDraft] = useState<NewProduct>({ name: "", category: "Maillots", purchasePrice: 0, salePrice: 0, variants: [] });
-  const [variantText, setVariantText] = useState("M, Bleu, 5\nL, Bleu, 5\nXL, Bleu, 3");
+  const [variantRows, setVariantRows] = useState<VariantRow[]>([{ id: 1, size: "", color: "", quantity: "0" }]);
 
   const notify = (text: string, kind: "success" | "error" = "success") => setNotice({ text, kind });
   const reload = useCallback(async () => {
@@ -72,8 +74,8 @@ export default function App() {
     setCatalog(items); setDashboard(stats); setSales(history); setShop(profile); setLoaded(true);
   }, []);
   const loadReport = useCallback(async () => setReport(await api.getReport(from, to)), [from, to]);
-  useEffect(() => { void reload().catch(e => notify(showError(e), "error")); }, [reload]);
-  useEffect(() => { void loadReport().catch(e => notify(showError(e), "error")); }, [loadReport]);
+  useEffect(() => { if (isBrowserPreview) { setLoaded(true); return; } void reload().catch(e => notify(showError(e), "error")); }, [reload]);
+  useEffect(() => { if (isBrowserPreview) return; void loadReport().catch(e => notify(showError(e), "error")); }, [loadReport]);
 
   const products = useMemo<ProductGroup[]>(() => {
     const map = new Map<number, ProductGroup>();
@@ -123,18 +125,38 @@ export default function App() {
       notify("Vente " + result.reference + " enregistrée avec succès.");
     } catch (e) { notify(showError(e), "error"); } finally { setBusy(false); }
   }
+  function updateVariantRow(id: number, field: "size" | "color" | "quantity", value: string) {
+    setVariantRows(rows => rows.map(row => row.id === id ? { ...row, [field]: value } : row));
+  }
+  function addVariantRow() {
+    setVariantRows(rows => [...rows, {
+      id: Math.max(0, ...rows.map(row => row.id)) + 1,
+      size: "", color: rows[rows.length - 1]?.color ?? "", quantity: "0"
+    }]);
+  }
   async function doAddProduct(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
-    const variants = variantText.trim().split("\n").filter(Boolean).map(line => {
-      const [size = "Unique", color = "Standard", quantity = "0"] = line.split(",").map(x => x.trim());
-      return { size, color, quantity: number(quantity) };
-    });
-    if (!variants.length || variants.some(v => !v.size || !v.color)) { notify("Ajoutez au moins une variante valide.", "error"); return; }
+    const variants = variantRows.map(row => ({
+      size: row.size.trim(),
+      color: row.color.trim() || "Standard",
+      quantity: Number(row.quantity)
+    }));
+    if (!variants.length || variants.some(v => !v.size || !Number.isSafeInteger(v.quantity) || v.quantity < 0)) {
+      notify("Renseignez une taille et une quantité entière positive ou nulle sur chaque ligne.", "error");
+      return;
+    }
+    const keys = variants.map(v => v.size.toLocaleLowerCase() + "|" + v.color.toLocaleLowerCase());
+    if (new Set(keys).size !== keys.length) {
+      notify("La même taille et couleur apparaît plusieurs fois.", "error");
+      return;
+    }
     setBusy(true);
     try {
       await api.createProduct({ ...draft, variants });
-      setAddModal(false); setDraft({ name: "", category: "Maillots", purchasePrice: 0, salePrice: 0, variants: [] });
+      setAddModal(false);
+      setDraft({ name: "", category: "Maillots", purchasePrice: 0, salePrice: 0, variants: [] });
+      setVariantRows([{ id: 1, size: "", color: "", quantity: "0" }]);
       await reload(); notify("Produit ajouté au catalogue.");
     } catch (e) { notify(showError(e), "error"); } finally { setBusy(false); }
   }
@@ -192,6 +214,7 @@ export default function App() {
         <div className="topbar-actions"><div className="date-badge"><CalendarDays size={16}/>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div><span className="top-avatar">ML</span></div>
       </header>
       <div className="content">
+        {isBrowserPreview && <div className="browser-warning"><CircleAlert size={19}/><span><strong>Aperçu navigateur uniquement.</strong> Pour enregistrer des ventes et accéder à SQLite, lancez <code>npm run tauri dev</code> et utilisez la fenêtre de l'application, pas l'onglet localhost.</span></div>}
         {page === "dashboard" && <>
           <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Voici l'activité de votre boutique aujourd'hui.</p></div><button className="primary-btn" onClick={() => setPage("pos")}><Plus size={18}/> Nouvelle vente</button></div>
           <div className="stats-grid">{cards.map(c => <Stat key={c.title} {...c}/>)}</div>
@@ -264,7 +287,41 @@ export default function App() {
 
     {selected && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedId(null);}}><div className="modal"><div className="modal-header"><div><span className="eyebrow">CHOISIR UNE VARIANTE</span><h2>{selected.name}</h2><p>{selected.category} · Choisissez la taille et la couleur</p></div><button className="icon-button" onClick={()=>setSelectedId(null)} aria-label="Fermer"><X size={20}/></button></div><div className="variant-list">{selected.variants.map(v=><button key={v.id} disabled={v.quantity===0} onClick={()=>addToCart(v)} className="variant-choice"><span className="variant-square">{v.size}</span><span><strong>{v.color}</strong><small>{v.quantity ? v.quantity+" disponible(s)" : "En rupture"}</small></span><strong>{money(v.salePrice)}</strong><Plus size={17}/></button>)}</div></div></div>}
 
-    {addModal && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAddModal(false);}}><form className="modal product-modal" onSubmit={doAddProduct}><div className="modal-header"><div><span className="eyebrow">NOUVEAU VÊTEMENT</span><h2>Ajouter un produit</h2><p>Un produit peut avoir plusieurs tailles et couleurs.</p></div><button type="button" className="icon-button" onClick={()=>setAddModal(false)}><X size={20}/></button></div><div className="form-grid two-cols"><label>Nom du produit<input required placeholder="Ex. Maillot domicile" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label><label>Catégorie<select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Prix d'achat (FCFA)<input type="number" required min="0" value={draft.purchasePrice} onChange={e=>setDraft({...draft,purchasePrice:number(e.target.value)})}/></label><label>Prix de vente (FCFA)<input type="number" required min="0" value={draft.salePrice} onChange={e=>setDraft({...draft,salePrice:number(e.target.value)})}/></label></div><label className="textarea-label">Variantes (une par ligne : taille, couleur, quantité)<textarea rows={4} value={variantText} onChange={e=>setVariantText(e.target.value)}/><small>Exemple : XL, Blanc, 12</small></label><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setAddModal(false)}>Annuler</button><button type="submit" disabled={busy} className="primary-btn"><Plus size={17}/> Enregistrer le produit</button></div></form></div>}
+    {addModal && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAddModal(false);}}>
+      <form className="modal product-modal" onSubmit={doAddProduct}>
+        <div className="modal-header">
+          <div><span className="eyebrow">NOUVEAU VÊTEMENT</span><h2>Ajouter un produit</h2><p>Renseignez le vêtement et ses variantes de stock.</p></div>
+          <button type="button" className="icon-button" onClick={()=>setAddModal(false)} aria-label="Fermer"><X size={20}/></button>
+        </div>
+        <div className="form-grid two-cols">
+          <label>Nom du produit<input required placeholder="Ex. Maillot domicile" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label>
+          <label>Catégorie<select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}>{categories.map(c=><option key={c}>{c}</option>)}</select></label>
+          <label>Prix d'achat (FCFA)<input type="number" required min="0" value={draft.purchasePrice} onChange={e=>setDraft({...draft,purchasePrice:number(e.target.value)})}/></label>
+          <label>Prix de vente (FCFA)<input type="number" required min="0" value={draft.salePrice} onChange={e=>setDraft({...draft,salePrice:number(e.target.value)})}/></label>
+        </div>
+        <div className="variants-editor">
+          <div className="variants-heading">
+            <div><strong>Tailles, couleurs et quantités</strong><p>Une combinaison taille/couleur correspond à un stock distinct.</p></div>
+            <span className="variants-count">{variantRows.length} variante{variantRows.length>1?"s":""}</span>
+          </div>
+          <datalist id="size-options">
+            {["Unique","XS","S","M","L","XL","XXL","3XL","4XL","28","30","32","34","36","38","40","42","44"].map(size=><option value={size} key={size}/>)}
+          </datalist>
+          <div className="variant-grid-head" aria-hidden="true"><span>Taille</span><span>Couleur</span><span>Quantité</span><span></span></div>
+          <div className="variant-editor-list">
+            {variantRows.map(row => <div className="variant-editor-row" key={row.id}>
+              <input aria-label="Taille" required list="size-options" placeholder="Ex. M, XL, 32…" value={row.size} onChange={e=>updateVariantRow(row.id,"size",e.target.value)}/>
+              <input aria-label="Couleur" placeholder="Ex. Bleu" value={row.color} onChange={e=>updateVariantRow(row.id,"color",e.target.value)}/>
+              <input aria-label="Quantité" type="number" required min="0" step="1" value={row.quantity} onChange={e=>updateVariantRow(row.id,"quantity",e.target.value)}/>
+              <button type="button" className="remove-variant" aria-label="Supprimer cette variante" title="Supprimer la variante" disabled={variantRows.length===1} onClick={()=>setVariantRows(rows=>rows.filter(r=>r.id!==row.id))}><Trash2 size={17}/></button>
+            </div>)}
+          </div>
+          <button type="button" className="add-variant-btn" onClick={addVariantRow}><Plus size={17}/> Ajouter une taille / couleur</button>
+          <p className="variant-hint">Astuce : vous pouvez saisir les tailles textiles (M, L, XL) ou numériques (30, 32, 34). Couleur vide = Standard.</p>
+        </div>
+        <div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setAddModal(false)}>Annuler</button><button type="submit" disabled={busy} className="primary-btn"><Plus size={17}/> Enregistrer le produit</button></div>
+      </form>
+    </div>}
 
     {stockVariant && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setStockVariant(null);}}><form className="modal small-modal" onSubmit={doAdjustStock}><div className="modal-header"><div><span className="eyebrow">MOUVEMENT DE STOCK</span><h2>{stockVariant.name}</h2><p>{stockVariant.size} / {stockVariant.color} · {stockVariant.quantity} pièce(s) actuellement</p></div><button type="button" className="icon-button" onClick={()=>setStockVariant(null)}><X size={20}/></button></div><div className="form-grid"><label>Variation (+ entrée, − sortie)<input required type="number" value={stockDelta} onChange={e=>setStockDelta(e.target.value)}/></label><label>Motif<input required value={stockReason} onChange={e=>setStockReason(e.target.value)}/></label></div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setStockVariant(null)}>Annuler</button><button disabled={busy} className="primary-btn">Enregistrer</button></div></form></div>}
 
