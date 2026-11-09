@@ -48,3 +48,17 @@ Données propres à chaque installation. Aucune télémétrie ni requête résea
 - Pour construire l'installateur sur **votre poste de développement** : exécuter le script PowerShell scripts/build-installer.ps1 après validation du projet.
 
 La dernière version du code n'est **pas encore approuvée pour les ventes de clients réels**. La base SQLite n'est pas chiffrée au repos et l'export/restauration hors disque reste à finaliser.
+
+## Clients, crédits et modification des produits (branche de développement)
+
+- **Catalogue → Détails / Modifier** : consulter tailles, couleurs, prix, stock et mouvements ; modifier les prix, la catégorie, le nom, les tailles/couleurs et ajouter une variante. Les stocks existants se corrigent exclusivement dans Gestion du stock.
+- **Clients & dettes → Ajouter un client** : nom, téléphone, adresse, note, achats, paiements et solde dû.
+- **Caisse → Client** : sélectionner un client (obligatoire si la vente n'est pas payée entièrement).
+- **Caisse → Paiement total / Acompte-Crédit** : indiquer le montant versé aujourd'hui, y compris 0 FCFA si la vente est entièrement à crédit.
+- **Historique / Clients → Régler** : enregistrer ensuite chaque versement jusqu'à ce que le reste soit 0 FCFA.
+
+Les sommes sont distinguées : **montant de vente** (la valeur des articles vendus) et **encaissements** (argent réellement reçu). Les nouveaux versements sont des règlements et ne créent pas de ventes supplémentaires. Les tables SQLite ajoutées sont customers, sale_customers et sale_payments.
+
+**Migration** : au premier lancement de cette version, les anciennes ventes sauvegardées comme payées comptant reçoivent un règlement historique complet. La migration est enregistrée pour ne pas transformer de nouvelles ventes à crédit en ventes payées lors du redémarrage. Aucun ancien produit ou client n'est volontairement supprimé.
+
+**Important** : l'interface et les fonctionnalités restent en phase de validation. Les retours et annulations, la restauration externe vérifiée, la signature de l'installateur et la recette sur de vraies imprimantes sont encore nécessaires avant de vendre le logiciel.
