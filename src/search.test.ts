@@ -59,6 +59,7 @@ describe("recherche instantanée des clients", () => {
   });
   it("retrouve instantanément un téléphone et un quartier", () => {
     expect(matchesCustomer(clients[0], "76 45 12")).toBe(true);
+    expect(matchesCustomer(clients[0], "764512")).toBe(true);
     expect(matchesCustomer(clients[1], "70 22")).toBe(true);
     expect(matchesCustomer(clients[0], "Kalaban")).toBe(true);
     expect(matchesCustomer(clients[1], "hamdallaye aci")).toBe(true);
