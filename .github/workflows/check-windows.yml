@@ -28,3 +28,5 @@ jobs:
         run: npm run test
       - name: Verifier Rust et Tauri
         run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Tester la sécurité locale et la préservation SQLite
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib
