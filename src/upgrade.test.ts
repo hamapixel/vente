@@ -8,7 +8,7 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(tauri.productName).toBe("VestiFlow");
     expect(tauri.app.windows[0].title).toBe("VestiFlow");
     expect(pkg.version).toBe(tauri.version);
-    expect(tauri.version).toBe("0.2.0");
+    expect(tauri.version).toBe("0.2.1");
   });
   it("keeps the old Tauri identifier and existing SQLite filename", () => {
     expect(tauri.identifier).toBe("ml.modestock.local");
@@ -25,5 +25,13 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(styles).toContain("@media(max-width:940px)");
     expect(styles).toContain("@media(max-height:670px)");
     expect(styles).toContain(".sidebar{");
+    expect(styles).toContain("height:100vh;height:100dvh");
+    expect(styles).toContain(".shell>.main>.content{");
+    expect(styles).toContain("overflow-y:auto;");
+    expect(styles).toContain(".shell>.sidebar{");
+    expect(styles).toContain("overscroll-behavior-y:contain;");
+    expect(styles).toContain(".shell>.main>.topbar{");
+    expect(styles).toContain("flex:0 0 auto;");
+  
   });
 });
