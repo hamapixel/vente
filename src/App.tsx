@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   Activity, ArrowLeft, ArrowRight, BadgeCheck, BarChart3,
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
@@ -62,6 +62,8 @@ export default function App() {
   const [shop, setShop] = useState<Shop>(blankShop);
   const [notice, setNotice] = useState<Notice>(null);
   const [busy, setBusy] = useState(false);
+  const checkoutBusyRef = useRef(false);
+  const checkoutRequestIdRef = useRef<string>(crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Tous");
@@ -189,15 +191,22 @@ export default function App() {
       : c).filter(c => c.quantity > 0));
   }
   async function doCheckout() {
-    if (busy || !cart.length) return;
+    if (checkoutBusyRef.current || !cart.length) return;
     if (discount > subtotal) { notify("La remise dépasse le montant de la vente.", "error"); return; }
+    checkoutBusyRef.current = true;
     setBusy(true);
     try {
-      const result = await api.checkout(crypto.randomUUID(), cart, discount, payment);
-      setReceipt(result); setCart([]); setDiscount(0); await reload();
-      await loadReport();
+      // La même référence est réutilisée lors d'une relance après erreur :
+      // le backend retourne la vente existante au lieu de l'enregistrer deux fois.
+      const result = await api.checkout(checkoutRequestIdRef.current, cart, discount, payment);
+      checkoutRequestIdRef.current = crypto.randomUUID();
+      setReceipt(result); setCart([]); setDiscount(0);
       notify("Vente " + result.reference + " enregistrée avec succès.");
-    } catch (e) { notify(showError(e), "error"); } finally { setBusy(false); }
+      // Une erreur d'affichage après le paiement ne doit pas faire réessayer la vente.
+      void reload().catch(e => notify(showError(e), "error"));
+      void loadReport().catch(e => notify(showError(e), "error"));
+    } catch (e) { notify(showError(e), "error"); }
+    finally { checkoutBusyRef.current = false; setBusy(false); }
   }
   function updateVariantRow(id: number, field: "size" | "color" | "quantity", value: string) {
     setVariantRows(rows => rows.map(row => row.id === id ? { ...row, [field]: value } : row));
