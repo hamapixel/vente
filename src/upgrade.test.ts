@@ -17,8 +17,9 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(source).toContain('directory.join("modestock.db")');
   });
   it("permits a smaller Windows screen without forced horizontal overflow", () => {
-    expect(tauri.app.windows[0].minWidth).toBeLessThanOrEqual(720);
-    expect(tauri.app.windows[0].minHeight).toBeLessThanOrEqual(520);
+    expect(tauri.app.windows[0].minWidth).toBeLessThanOrEqual(520);
+    expect(tauri.app.windows[0].minHeight).toBeLessThanOrEqual(400);
+    expect(tauri.app.windows[0].maximized).toBe(true);
     const styles = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
     expect(styles).toContain("html,body,#root{width:100%;max-width:100%;min-width:0;margin:0}");
     expect(styles).toContain("@media(max-width:940px)");
