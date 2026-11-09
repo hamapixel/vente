@@ -29,7 +29,7 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(styles).toContain(".shell>.main>.content{");
     expect(styles).toContain("overflow-y:auto;");
     expect(styles).toContain(".shell>.sidebar{");
-    expect(styles).toContain("overscroll-behavior-y:contain;");
+    expect(styles).toContain("overscroll-behavior:none;");
     expect(styles).toContain(".shell>.main>.topbar{");
     expect(styles).toContain("flex:0 0 auto;");
     const fixedSidebar = styles.match(/\.shell>\.sidebar\s*\{([^}]*)\}/)?.[1];
