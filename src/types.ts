@@ -32,6 +32,10 @@ export interface ReportDay {
   grossProfit: number;
   count: number;
 }
+export interface LoginBrand {
+  name: string;
+  logoData: string;
+}
 export interface Shop {
   name: string;
   phone: string;
