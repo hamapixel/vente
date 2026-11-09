@@ -26,3 +26,82 @@
 .browser-warning>svg{flex-shrink:0;margin-top:1px}
 .browser-warning code{background:#fff0d4;padding:2px 5px;border-radius:4px;font-size:11px;font-weight:700}
 @media(max-width:720px){.variant-grid-head{display:none}.variant-editor-row{grid-template-columns:1fr 1fr}.variant-editor-row input:nth-child(3){grid-column:1}.variant-editor-row .remove-variant{grid-column:2;justify-self:end}.variants-heading{flex-wrap:wrap}}
+
+
+/* Authentification locale */
+.login-screen{min-height:100vh;display:grid;grid-template-columns:minmax(340px,45%) 1fr;background:#fff}
+.login-side{background:linear-gradient(145deg,#111f3a,#1d426b);padding:45px 50px;color:white;display:flex;flex-direction:column;justify-content:space-between}
+.login-brand{display:flex;align-items:center;gap:12px;font-size:21px;letter-spacing:-.5px}
+.login-brand strong span{color:#9fccff}
+.login-promo{margin-top:auto;margin-bottom:auto}
+.login-kicker{color:#81b8ff;letter-spacing:2px;font-size:11px;font-weight:800}
+.login-promo h1{font-size:42px;line-height:1.14;letter-spacing:-1.5px;margin:20px 0}
+.login-promo p{max-width:380px;line-height:1.8;color:#b6c7db;font-size:14px}
+.login-features{display:grid;gap:15px;margin-top:38px;color:#e4eefb;font-size:12px}
+.login-features span{display:flex;align-items:center;gap:12px}
+.login-side>small{font-size:11px;color:#88a6cc}
+.login-main{display:grid;place-items:center;padding:50px}
+.login-form{width:min(100%,410px);display:grid;gap:18px}
+.login-form h2{font-size:26px;line-height:1.25;letter-spacing:-.7px;margin:0}
+.login-form>p{font-size:13px;line-height:1.7;color:#8b9bad;margin:-9px 0 3px}
+.login-lock{background:#eef5ff;border-radius:14px;width:56px;height:56px;display:grid;place-items:center;color:#3975bb}
+.login-form>label{display:grid;gap:8px;font-size:12px;font-weight:700;color:#536781}
+.login-form input{height:48px;border:1px solid #dce6f2;border-radius:10px;padding:0 13px;width:100%;min-width:0;background:white;color:#213953;outline:0}
+.login-form input:focus{border-color:#508eda;box-shadow:0 0 0 3px #4e91d31a}
+.password-wrap{position:relative}
+.password-wrap input{padding-right:50px}
+.password-wrap button{position:absolute;right:6px;top:6px;width:37px;height:37px;background:transparent;border:0;display:grid;place-items:center;color:#8296ab}
+.login-form>.primary-btn{height:48px;margin-top:7px}
+.login-privacy{font-size:11px;text-align:center;line-height:1.6;color:#96a5b6}
+.auth-error{border-radius:9px;border:1px solid #f6d4cc;background:#fff4f1;padding:12px;color:#ad5446;font-size:12px;line-height:1.5}
+.logout-sidebar{display:flex;gap:11px;align-items:center;background:transparent;color:#b5c6db;border:0;width:100%;padding:12px 15px;margin-bottom:4px;border-radius:9px;font-size:12px;font-weight:650}
+.logout-sidebar:hover{background:#ffffff10;color:#fff}
+.back-nav{display:grid;place-items:center;border:1px solid #e4ecf6;background:#fff;border-radius:8px;width:33px;height:33px;color:#4b6688;margin-right:4px}
+.back-nav:hover:not(:disabled){background:#eef5ff;color:#2d70ba}
+
+/* Profil boutique et logo */
+.branding-layout{grid-template-columns:minmax(0,1.1fr) minmax(290px,1fr)}
+.settings-side{display:grid;align-content:start;gap:0;min-width:0}
+.settings-layout textarea{resize:vertical}
+.logo-chooser{border:1px dashed #c8d7ec;border-radius:11px;padding:15px;display:flex;gap:17px;align-items:center;background:#f9fbff}
+.logo-current{width:82px;height:82px;border-radius:11px;border:1px solid #e4ebf5;background:white;display:grid;place-items:center;overflow:hidden;color:#7695b7;flex-shrink:0}
+.logo-current img{display:block;width:100%;height:100%;object-fit:contain}
+.logo-chooser strong{font-size:12px;color:#344b65}
+.logo-chooser p{font-size:10.5px;color:#90a1b5;line-height:1.5}
+.logo-upload{display:inline-flex!important;cursor:pointer;border:1px solid #b4cce9;background:#ecf4ff;color:#276caf!important;border-radius:7px;padding:8px 11px;font-size:10px!important;font-weight:750}
+.logo-upload input{display:none!important}
+.logo-remove{display:block;color:#aa6570;border:0;background:none;padding:7px 0 0;font-size:10px;font-weight:700}
+.settings-ticket-preview{background:#f2f5fa;border:1px solid #e4ebf3;border-radius:12px;padding:16px;display:grid;justify-items:center;max-height:480px;overflow:auto}
+.settings-preview-hint{font-size:10.5px;color:#90a0b0;line-height:1.6}
+.ticket-preview{background:white;border:1px solid #e0e5ef;box-shadow:0 5px 25px #26344e12;color:#222;font-family:"Segoe UI",Arial,sans-serif;font-size:11px;line-height:1.45;padding:15px 12px;width:270px;max-width:100%;overflow-wrap:anywhere}
+.ticket-preview.a4{width:100%;max-width:530px;padding:25px}
+.ticket-head{text-align:center;border-bottom:1px dashed #aaa;padding-bottom:11px}
+.ticket-head h2{font-size:16px;margin:6px 0}
+.ticket-head p{margin:3px 0;white-space:pre-wrap}
+.ticket-logo{width:70px;height:70px;object-fit:contain;display:block;margin:0 auto}
+.ticket-custom-header{font-weight:650;margin-top:10px!important}
+.ticket-meta{text-align:center;display:grid;gap:3px;padding:12px 0;border-bottom:1px dashed #aaa}
+.ticket-table{min-width:0;width:100%;font-size:10px}
+.ticket-table th{color:#3a3a3a;font-size:10px;text-align:left;letter-spacing:0;background:white;text-transform:none;padding:9px 3px;border-bottom:1px solid #ccc}
+.ticket-table th:last-child,.ticket-table td:last-child{text-align:right}
+.ticket-table td{padding:8px 3px;color:#333;vertical-align:top;border-bottom:1px solid #eee}
+.ticket-table td:nth-child(2),.ticket-table th:nth-child(2){text-align:center}
+.ticket-table small{display:block;color:#666;font-size:9px;margin-top:3px}
+.ticket-totals{padding:13px 0}
+.ticket-totals>div{display:flex;gap:9px;justify-content:space-between;margin-bottom:5px}
+.ticket-totals .ticket-grand{font-size:14px;font-weight:800;padding:11px 0;margin-top:9px;border-top:1px dashed #bbb;border-bottom:1px dashed #bbb}
+.ticket-footer{border-top:1px dashed #aaa;text-align:center;padding-top:13px;white-space:pre-wrap;font-size:10px}
+.ticket-modal{width:min(100%,580px)}
+.ticket-modal-scroll{max-height:60vh;overflow:auto;display:grid;place-items:center;background:#f4f6fb;border-radius:12px;padding:18px}
+.receipt-buttons{display:flex;gap:10px;margin-top:16px;justify-content:center}
+.print-only{display:none}
+@media(max-width:1120px){.login-side{padding:35px}.login-main{padding:35px}.login-promo h1{font-size:34px}.branding-layout{grid-template-columns:1fr}}
+@media print{
+  @page{size:auto;margin:5mm}
+  body{min-width:0!important;background:white!important;margin:0!important}
+  .shell,.modal-overlay,.toast,.loading-cover,.login-screen{display:none!important}
+  .print-only{display:block!important;position:static!important;margin:0!important;padding:0!important;background:white!important}
+  .print-only .ticket-preview{box-shadow:none!important;border:0!important;margin:0 auto!important;max-width:none!important;width:72mm!important;padding:0!important;font-size:10px!important}
+  .print-only .ticket-preview.a4{width:185mm!important;padding:8mm!important}
+  .print-only .ticket-table{width:100%!important}
+}
