@@ -3,16 +3,18 @@ import {
   Activity, ArrowLeft, ArrowRight, BadgeCheck, BarChart3,
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
   Download, FileText, Footprints, LayoutDashboard, LogOut, Minus, MoreHorizontal, Package, Printer,
-  PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart,
+  PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart, UsersRound,
   TrendingUp, Trash2, Wallet, X
 } from "lucide-react";
 import { api } from "./api";
 import { matchesProduct, matchesVariant } from "./search";
 import LoginScreen from "./LoginScreen";
+import CustomersPanel, { CustomerEditor, PaymentDialog } from "./CustomersPanel";
+import ProductDetailModal from "./ProductDetailModal";
 import ReceiptView from "./ReceiptView";
-import type { CartLine, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
+import type { CartLine, Customer, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
 
-type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "reports" | "settings";
+type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "customers" | "reports" | "settings";
 type ProductGroup = { id: number; name: string; category: string; variants: Variant[] };
 type VariantRow = { id: number; size: string; color: string; quantity: string };
 type ProductDraft = Omit<NewProduct, "purchasePrice" | "salePrice"> & { purchasePrice: string; salePrice: string };
@@ -22,11 +24,11 @@ const localDate = (d = new Date()) =>
   [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
 const number = (n: string) => Math.max(0, Math.floor(Number(n) || 0));
 const showError = (e: unknown) => typeof e === "string" ? e : e instanceof Error ? e.message : "Une erreur est survenue.";
-const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0 };
+const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0, collectedToday: 0, outstanding: 0 };
 const blankShop: Shop = { name: "Ma boutique", phone: "", address: "", logoData: "", receiptHeader: "", receiptFooter: "Merci pour votre achat !", receiptFormat: "ticket" };
 const sampleReceipt: ReceiptDocument = {
   reference: "VT-EXEMPLE", createdAt: "2026-11-09T12:00:00", paymentMethod: "Espèces",
-  subtotal: 10000, discount: 500, total: 9500,
+  subtotal: 10000, discount: 500, total: 9500, paid: 9500, remaining: 0, customerName: "Client exemple",
   lines: [{ name: "Maillot de football", variant: "L / Bleu", quantity: 1, unitPrice: 10000, lineTotal: 10000 }]
 };
 const isBrowserPreview = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
@@ -37,6 +39,7 @@ const navigation = [
   { id: "products" as const, label: "Catalogue produits", icon: Shirt },
   { id: "stock" as const, label: "Gestion du stock", icon: Package },
   { id: "sales" as const, label: "Historique ventes", icon: FileText },
+  { id: "customers" as const, label: "Clients & dettes", icon: UsersRound },
   { id: "reports" as const, label: "Rapports", icon: BarChart3 },
   { id: "settings" as const, label: "Paramètres", icon: Settings2 },
 ];
@@ -59,6 +62,14 @@ export default function App() {
   const [catalog, setCatalog] = useState<Variant[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard>(blankDashboard);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [customerEditorOpen, setCustomerEditorOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
+  const [paymentMode, setPaymentMode] = useState<"full" | "partial">("full");
+  const [initialReceived, setInitialReceived] = useState("0");
+  const [productDetailId, setProductDetailId] = useState<number | null>(null);
   const [shop, setShop] = useState<Shop>(blankShop);
   const [notice, setNotice] = useState<Notice>(null);
   const [busy, setBusy] = useState(false);
@@ -87,8 +98,10 @@ export default function App() {
 
   const notify = (text: string, kind: "success" | "error" = "success") => setNotice({ text, kind });
   const reload = useCallback(async () => {
-    const [items, stats, history, profile] = await Promise.all([api.getCatalog(), api.getDashboard(), api.getSales(), api.getShop()]);
-    setCatalog(items); setDashboard(stats); setSales(history); setShop(profile); setLoaded(true);
+    const [items, stats, history, profile, clients] = await Promise.all([
+      api.getCatalog(), api.getDashboard(), api.getSales(), api.getShop(), api.listCustomers()
+    ]);
+    setCatalog(items); setDashboard(stats); setSales(history); setShop(profile); setCustomers(clients); setLoaded(true);
   }, []);
   const loadReport = useCallback(async () => setReport(await api.getReport(from, to)), [from, to]);
   useEffect(() => {
@@ -128,8 +141,8 @@ export default function App() {
     try {
       await api.logout();
       setSession(null); setAuthReady(true); setNavHistory([]); setPage("dashboard");
-      setCatalog([]); setSales([]); setDashboard(blankDashboard); setShop(blankShop);
-      setCart([]); setReceipt(null); setTicketView(null); setNotice(null); setLoaded(false);
+      setCatalog([]); setSales([]); setCustomers([]); setDashboard(blankDashboard); setShop(blankShop);
+      setCart([]); setCustomerId(null); setPaymentSale(null); setProductDetailId(null); setReceipt(null); setTicketView(null); setNotice(null); setLoaded(false);
     } catch (e) { notify(showError(e), "error"); }
   }
   async function openTicket(id: number) {
@@ -174,6 +187,8 @@ export default function App() {
     { title: "Bénéfice brut du jour", value: money(dashboard.grossProfit), hint: "Ventes moins coût des articles", icon: TrendingUp, variant: "green" },
     { title: "Résultat net estimé", value: money(dashboard.grossProfit - dashboard.expenses), hint: "Après dépenses enregistrées", icon: Activity, variant: "purple" },
     { title: "Variantes en stock faible", value: String(dashboard.lowStock), hint: "Quantité inférieure ou égale à 3", icon: CircleAlert, variant: "orange" },
+    { title: "Encaissements du jour", value: money(dashboard.collectedToday), hint: "Acomptes et règlements compris", icon: CreditCard, variant: "green" },
+    { title: "Créances clients", value: money(dashboard.outstanding), hint: "Ventes restant à régler", icon: UsersRound, variant: "orange" },
   ];
 
   function addToCart(v: Variant) {
@@ -193,21 +208,43 @@ export default function App() {
   async function doCheckout() {
     if (checkoutBusyRef.current || !cart.length) return;
     if (discount > subtotal) { notify("La remise dépasse le montant de la vente.", "error"); return; }
+    const paymentReceived = paymentMode === "full" ? total : Number(initialReceived || 0);
+    if (!Number.isSafeInteger(paymentReceived) || paymentReceived < 0 || paymentReceived > total) {
+      notify("Montant versé invalide : il doit être compris entre 0 et le total.", "error"); return;
+    }
+    if (paymentReceived < total && !customerId) {
+      notify("Choisissez ou créez un client pour une vente avec dette.", "error"); return;
+    }
     checkoutBusyRef.current = true;
     setBusy(true);
     try {
-      // La même référence est réutilisée lors d'une relance après erreur :
-      // le backend retourne la vente existante au lieu de l'enregistrer deux fois.
-      const result = await api.checkout(checkoutRequestIdRef.current, cart, discount, payment);
+      const result = await api.checkout(
+        checkoutRequestIdRef.current, cart, discount, payment, customerId, paymentReceived
+      );
       checkoutRequestIdRef.current = crypto.randomUUID();
       setReceipt(result); setCart([]); setDiscount(0);
+      setPaymentMode("full"); setInitialReceived("0"); setCustomerId(null);
       notify("Vente " + result.reference + " enregistrée avec succès.");
-      // Une erreur d'affichage après le paiement ne doit pas faire réessayer la vente.
       void reload().catch(e => notify(showError(e), "error"));
       void loadReport().catch(e => notify(showError(e), "error"));
     } catch (e) { notify(showError(e), "error"); }
     finally { checkoutBusyRef.current = false; setBusy(false); }
   }
+  async function afterCustomerSaved(id:number) {
+    setCustomerEditorOpen(false);
+    setEditingCustomer(null);
+    setCustomerId(id);
+    try { await reload(); notify("Fiche client enregistrée."); }
+    catch (e) { notify(showError(e), "error"); }
+  }
+  async function afterPaymentSaved() {
+    setPaymentSale(null);
+    try { await reload(); notify("Règlement enregistré, solde mis à jour."); }
+    catch (e) { notify(showError(e), "error"); }
+  }
+  function addCustomer() { setEditingCustomer(null); setCustomerEditorOpen(true); }
+  function editCustomer(c:Customer) { setEditingCustomer(c); setCustomerEditorOpen(true); }
+
   function updateVariantRow(id: number, field: "size" | "color" | "quantity", value: string) {
     setVariantRows(rows => rows.map(row => row.id === id ? { ...row, [field]: value } : row));
   }
@@ -289,8 +326,16 @@ export default function App() {
     catch (e) { notify(showError(e), "error"); }
     finally { setBusy(false); }
   }
-  const recentTable = (rows: Sale[]) => <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Date</th><th>Paiement</th><th>Vente</th><th>Marge brute</th><th>Ticket</th></tr></thead><tbody>
-    {rows.map(s => <tr key={s.id}><td className="strong-cell">{s.reference}</td><td>{s.createdAt.slice(0, 16).replace("T", " ")}</td><td><span className="mini-pill">{s.paymentMethod}</span></td><td className="strong-cell">{money(s.total)}</td><td className={s.total - s.totalCost >= 0 ? "positive" : "negative"}>{money(s.total - s.totalCost)}</td><td><button className="table-action" onClick={()=>void openTicket(s.id)}><Printer size={15}/> Ticket</button></td></tr>)}
+  const recentTable = (rows: Sale[]) => <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Date</th><th>Client</th><th>Total</th><th>Versé</th><th>Reste à payer</th><th>Actions</th></tr></thead><tbody>
+    {rows.map(s => <tr key={s.id}>
+      <td className="strong-cell">{s.reference}</td><td>{s.createdAt.slice(0,16).replace("T"," ")}</td>
+      <td>{s.customerName || "Comptant"}</td><td className="strong-cell">{money(s.total)}</td>
+      <td className="positive">{money(s.paid)}</td><td className={s.remaining > 0 ? "negative" : "positive"}>{s.remaining > 0 ? money(s.remaining) : "Soldé"}</td>
+      <td><div className="inline-actions">
+        {s.remaining > 0 && <button className="table-action" onClick={()=>setPaymentSale(s)}><CreditCard size={15}/> Régler</button>}
+        <button className="table-action" onClick={()=>void openTicket(s.id)}><Printer size={15}/> Ticket</button>
+      </div></td>
+    </tr>)}
   </tbody></table></div>;
 
   if (!authReady) return <div className="loading-cover"><div className="brand-mark"><Shirt size={24}/></div><strong>Initialisation de ModeStock Local…</strong></div>;
