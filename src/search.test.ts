@@ -21,6 +21,8 @@ describe("recherche produits instantanée", () => {
 
   it("recherche une pointure et une couleur, même avec des mots combinés", () => {
     expect(matchesVariant(shoe, "Chaussure 42 noir")).toBe(true);
+    expect(matchesVariant(shoe, "pointure 42")).toBe(true);
+    expect(matchesVariant(shirt, "taille L")).toBe(true);
     expect(matchesVariant(shoe, "chaussure 43")).toBe(false);
     expect(matchesVariant(shirt, "L Bleu")).toBe(true);
   });
