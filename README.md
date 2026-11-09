@@ -63,7 +63,7 @@ Les sommes sont distinguées : **montant de vente** (la valeur des articles vend
 
 **Important** : l'interface et les fonctionnalités restent en phase de validation. Les retours et annulations, la restauration externe vérifiée, la signature de l'installateur et la recette sur de vraies imprimantes sont encore nécessaires avant de vendre le logiciel.
 
-## Passage de ModeStock Local à VestiFlow 0.2.0
+## Passage de ModeStock Local à VestiFlow 0.2.1
 
 Le **nom commercial** et l'installateur sont maintenant « VestiFlow » (sans « Local »). L'identifiant technique **ml.modestock.local** et le fichier **modestock.db** sont préservés : une installation sous **le même compte Windows** peut retrouver les données déjà présentes. En raison du changement de `productName`, la version 0.2 peut s'installer à côté de ModeStock Local 0.1.0 ; **ne désinstallez pas l'ancienne version avant vérification**. Ne pas utiliser les deux applications simultanément. Le guide de migration est dans [docs/MISE_A_JOUR_VESTIFLOW.md](docs/MISE_A_JOUR_VESTIFLOW.md).
 
