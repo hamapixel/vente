@@ -48,3 +48,14 @@ export function matchesProduct(product: ProductWithVariants, query: string): boo
   ].join(" "));
   return words.every(word => data.includes(word));
 }
+
+/** Recherche instantanée dans les fiches clients : nom, téléphone, adresse. */
+export function matchesCustomer(
+  customer: { name: string; phone: string; address: string },
+  query: string
+): boolean {
+  const words = searchTerms(query);
+  if (!words.length) return true;
+  const searchable = normalizeSearch([customer.name, customer.phone, customer.address].join(" "));
+  return words.every(word => searchable.includes(word));
+}
