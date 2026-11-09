@@ -657,3 +657,44 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("Erreur de lancement de ModeStock Local");
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn schema_migration_keeps_existing_shop_data() {
+        let conn = Connection::open_in_memory().expect("Open memory DB");
+        init_db(&conn).expect("Initial schema");
+        conn.execute("UPDATE shops SET name='Boutique Démo' WHERE id=1", [])
+            .expect("Update shop");
+        init_db(&conn).expect("Idempotent schema setup");
+        let name: String = conn.query_row("SELECT name FROM shops WHERE id=1", [], |r| r.get(0))
+            .expect("Existing shop");
+        assert_eq!(name, "Boutique Démo");
+        let branding: i64 = conn.query_row("SELECT COUNT(*) FROM shop_branding", [], |r| r.get(0))
+            .expect("Shop branding table");
+        assert_eq!(branding, 1);
+    }
+
+    #[test]
+    fn invalid_login_attempts_are_temporarily_limited() {
+        let guard = LoginGuard(Mutex::new(FailedLogin::default()));
+        assert!(check_login_attempt(&guard).is_ok());
+        for _ in 0..5 { record_failed_login(&guard).expect("Register failure"); }
+        assert!(check_login_attempt(&guard).is_err());
+        clear_failed_login(&guard).expect("Clear lockout");
+        assert!(check_login_attempt(&guard).is_ok());
+    }
+
+    #[test]
+    fn argon2_password_hash_verifies_valid_password_only() {
+        let salt = SaltString::generate(&mut OsRng);
+        let hash = Argon2::default().hash_password(b"MotDePasseDeTest123!", &salt)
+            .expect("Hash").to_string();
+        let parsed = PasswordHash::new(&hash).expect("Parse hash");
+        assert!(Argon2::default().verify_password(b"MotDePasseDeTest123!", &parsed).is_ok());
+        assert!(Argon2::default().verify_password(b"motdepassetest123!", &parsed).is_err());
+    }
+}
