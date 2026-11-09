@@ -8,7 +8,7 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(tauri.productName).toBe("VestiFlow");
     expect(tauri.app.windows[0].title).toBe("VestiFlow");
     expect(pkg.version).toBe(tauri.version);
-    expect(tauri.version).toBe("0.2.1");
+    expect(tauri.version).toBe("0.2.2");
   });
   it("keeps the old Tauri identifier and existing SQLite filename", () => {
     expect(tauri.identifier).toBe("ml.modestock.local");
@@ -29,9 +29,20 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(styles).toContain(".shell>.main>.content{");
     expect(styles).toContain("overflow-y:auto;");
     expect(styles).toContain(".shell>.sidebar{");
-    expect(styles).toContain("overscroll-behavior-y:contain;");
+    expect(styles).toContain("overscroll-behavior:none;");
     expect(styles).toContain(".shell>.main>.topbar{");
     expect(styles).toContain("flex:0 0 auto;");
+    const fixedSidebar = styles.match(/\.shell>\.sidebar\s*\{([^}]*)\}/)?.[1];
+    expect(fixedSidebar).toBeDefined();
+    expect(fixedSidebar).toMatch(/overflow\s*:\s*hidden/);
+    expect(fixedSidebar).toMatch(/overscroll-behavior\s*:\s*none/);
+    expect(fixedSidebar).not.toMatch(/overflow-y\s*:\s*auto/);
+    expect(styles).toContain("@media(max-height:640px)");
+    expect(styles).toContain("@media(max-height:560px)");
+    expect(styles).toContain("@media(max-height:430px)");
+    const contentPanel = styles.match(/\.shell>\.main>\.content\s*\{([^}]*)\}/)?.[1];
+    expect(contentPanel).toMatch(/overflow-y\s*:\s*auto/);
+  
   
   });
 });
