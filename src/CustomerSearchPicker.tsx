@@ -69,7 +69,12 @@ export default function CustomerSearchPicker({ customers, value, onChange }: Pro
     }
   }
 
-  return <div className="customer-search-picker" ref={ref}>
+  return <div className="customer-search-picker" ref={ref} onBlur={event => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setOpen(false);
+      setQuery("");
+    }
+  }}>
     <div className={"customer-search-input " + (open ? "focused" : "")}>
       <Search size={16} aria-hidden="true" />
       <input
@@ -79,6 +84,7 @@ export default function CustomerSearchPicker({ customers, value, onChange }: Pro
         aria-label="Rechercher et sélectionner un client"
         aria-controls={listId}
         aria-expanded={open}
+        aria-activedescendant={open && count > 0 ? listId + "-option-" + active : undefined}
         aria-autocomplete="list"
         autoComplete="off"
         placeholder="Rechercher nom ou numéro…"
@@ -94,13 +100,14 @@ export default function CustomerSearchPicker({ customers, value, onChange }: Pro
       }}><ChevronDown size={15}/></button>
     </div>
     {open && <div className="customer-search-results" role="listbox" id={listId}>
-      {offerPassingCustomer && <button type="button" role="option" aria-selected={value === null} className={"customer-search-option " + (active === 0 ? "active" : "")} onMouseDown={e => e.preventDefault()} onClick={() => select(null)}>
+      {offerPassingCustomer && <button type="button" role="option" id={listId + "-option-0"} aria-selected={value === null} className={"customer-search-option " + (active === 0 ? "active" : "")} onMouseDown={e => e.preventDefault()} onClick={() => select(null)}>
         <span className="customer-search-avatar">CP</span>
         <span className="customer-search-option-body"><strong>Client de passage</strong><small>Vente comptant, sans fiche client</small></span>
         {value === null && <Check size={16}/>}
       </button>}
       {matches.map((customer,index) => <button
         type="button" role="option" aria-selected={value === customer.id}
+        id={listId + "-option-" + (index + (offerPassingCustomer ? 1 : 0))}
         key={customer.id}
         className={"customer-search-option " + (active === index + (offerPassingCustomer ? 1 : 0) ? "active" : "")}
         onMouseDown={e => e.preventDefault()} onClick={() => select(customer.id)}
