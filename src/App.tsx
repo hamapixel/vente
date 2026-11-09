@@ -348,7 +348,7 @@ export default function App() {
         </>}
 
         {page === "sales" && <>
-          <div className="page-heading"><div><div className="eyebrow">HISTORIQUE</div><h1>Historique des ventes</h1><p>Consultez les transactions enregistrées sur cet ordinateur.</p></div><button className="primary-btn" onClick={()=>setPage("pos")}><Plus size={18}/> Nouvelle vente</button></div>
+          <div className="page-heading"><div><div className="eyebrow">HISTORIQUE</div><h1>Historique des ventes</h1><p>Consultez les transactions enregistrées sur cet ordinateur.</p></div><button className="primary-btn" onClick={()=>navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
           <section className="panel"><div className="section-heading"><div><h2>Transactions récentes</h2><p>Les 100 dernières ventes enregistrées</p></div></div>{sales.length ? recentTable(sales) : <Empty title="Aucune transaction" description="Les ventes apparaîtront ici après votre premier encaissement." icon={FileText}/>}</section>
         </>}
 
