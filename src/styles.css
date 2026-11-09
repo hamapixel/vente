@@ -266,3 +266,255 @@
 .customer-search-option-body small{display:block;font-size:10px;line-height:1.5;color:#91a0b4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
 .customer-search-debt{font-size:9.5px;color:#c27d48;font-weight:800;flex-shrink:0}
 .customer-search-empty,.customer-search-help{padding:10px 9px;margin:0;font-size:11px;line-height:1.6;color:#8195ad}
+
+
+/* ===== VestiFlow 0.2 — tailles d'écran laptop / ProBook / tablettes =====
+ * La page entière ne peut plus déborder horizontalement.
+ * Seuls les tableaux riches peuvent défiler dans leur propre zone.
+ */
+html,body,#root{width:100%;max-width:100%;min-width:0;margin:0}
+html,body{overflow-x:clip}
+#root{min-height:100dvh}
+.shell{width:100%;min-width:0;min-height:100dvh;overflow:visible}
+.sidebar{
+  position:sticky;top:0;align-self:flex-start;
+  height:100vh;height:100dvh;max-height:100dvh;
+  flex-shrink:0;overflow-y:auto;overflow-x:clip;
+  overscroll-behavior:contain;scrollbar-width:none;z-index:9
+}
+.sidebar::-webkit-scrollbar{display:none}
+.sidebar .brand{flex-shrink:0;min-width:0}
+.sidebar .brand>div:last-child{min-width:0}
+.sidebar .brand strong{overflow-wrap:anywhere}
+.nav-list{min-width:0}
+.nav-link{min-width:0;flex-shrink:0}
+.main{flex:1;min-width:0;width:0}
+.topbar{
+  position:sticky;top:0;z-index:8;
+  width:100%;min-width:0;max-width:100%;
+  gap:12px
+}
+.breadcrumb{min-width:0;overflow:hidden;flex:1}
+.breadcrumb>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.breadcrumb>span{flex-shrink:0}
+.topbar-actions{flex-shrink:0;gap:10px}
+.content{width:100%;min-width:0;max-width:1540px}
+.page-heading>div{min-width:0}
+.page-heading h1,.page-heading p{overflow-wrap:anywhere}
+.panel,.stat-card,.pos-catalog,.cart-panel,.table-wrap,.dashboard-grid,.settings-layout,.clients-layout{min-width:0;max-width:100%}
+.table-wrap{overflow-x:auto;overscroll-behavior-x:contain}
+.stat-top{gap:8px}
+.stat-top span:first-child{min-width:0;overflow-wrap:anywhere}
+.stat-value{white-space:normal;overflow-wrap:anywhere;font-size:clamp(16px,1.6vw,22px);line-height:1.25}
+.overview-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+.overview-summary>div{min-width:0}
+.overview-summary strong{font-size:clamp(17px,2vw,25px);overflow-wrap:anywhere}
+.catalog-toolbar{min-width:0;flex-wrap:wrap}
+.catalog-toolbar .search-field{min-width:160px;flex:1 1 260px}
+.catalog-toolbar.compact-toolbar .search-count{margin-left:auto}
+.search-field input{min-width:0}
+.customer-summary-grid>*,.customer-financials>div{min-width:0}
+.customer-financials strong{white-space:normal;overflow-wrap:anywhere}
+.cart-panel{min-width:0}
+.form-grid>*,.form-grid.two-cols>*,.edit-product-row>*{min-width:0}
+
+/* Le login est une carte centrée, mais son contenu peut défiler verticalement
+   si Windows est à 125/150 % de mise à l'échelle ou sur un petit écran. */
+.compact-login-page{
+  height:100vh;height:100dvh;
+  min-height:0;max-width:100%;overflow-y:auto;overflow-x:clip;
+  padding:16px;gap:12px;justify-content:center;
+}
+.compact-login-card{width:min(100%,390px);padding:23px 29px 20px;flex-shrink:0}
+.compact-login-brand{margin-bottom:14px}
+.compact-login-logo{height:52px;width:52px;border-radius:14px;margin-bottom:8px}
+.compact-login-heading{margin-bottom:14px}
+.compact-login-heading h1{font-size:21px;margin:7px 0 4px}
+.compact-login-heading p{font-size:11px}
+.compact-login-form{gap:6px}
+.compact-login-form>label{margin-top:6px}
+.compact-login-form>input,.compact-password-field>input{height:40px}
+.compact-password-field button{top:2px}
+.compact-login-submit{height:42px;margin-top:11px}
+.compact-login-trust{margin-top:16px;padding-top:12px}
+.compact-login-bottom{margin:0;font-size:9px;flex-shrink:0}
+
+@media(max-height:670px){
+  .compact-login-page{padding:9px 12px;gap:6px}
+  .compact-login-card{padding:15px 22px 13px;max-width:370px}
+  .compact-login-brand{margin-bottom:8px}
+  .compact-login-logo{width:43px;height:43px;margin-bottom:5px}
+  .compact-login-appname{font-size:19px}
+  .compact-login-heading{margin-bottom:8px}
+  .compact-login-heading h1{font-size:19px;margin:4px 0}
+  .compact-login-form{gap:3px}
+  .compact-login-form>label{margin-top:5px}
+  .compact-login-form>input,.compact-password-field>input{height:37px}
+  .compact-password-field button{top:1px}
+  .compact-login-submit{height:39px;margin-top:8px}
+  .compact-login-trust{margin-top:10px;padding-top:9px}
+}
+@media(max-height:520px){
+  .compact-login-page{justify-content:flex-start}
+  .compact-login-bottom{display:none}
+}
+@media(max-width:620px){
+  .compact-login-page{padding-inline:10px}
+  .compact-login-card{padding-inline:19px}
+}
+
+@media(max-width:1150px){
+  .sidebar{width:210px;padding-inline:11px}
+  .brand{padding-inline:7px}
+  .brand strong{font-size:19px}
+  .nav-link{font-size:12px;padding-inline:11px;height:44px}
+  .sidebar-label{padding-inline:11px}
+  .content{padding:18px 18px 12px}
+  .topbar{height:66px;padding-inline:18px}
+  .pos-layout{grid-template-columns:minmax(0,1fr) minmax(265px,300px);gap:12px}
+  .cart-panel{top:76px}
+  .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dashboard-grid,.settings-layout,.branding-layout{grid-template-columns:minmax(0,1fr)}
+  .clients-layout{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:940px){
+  .sidebar{width:68px;padding:12px 8px}
+  .sidebar .brand{padding:0 0 16px;justify-content:center}
+  .sidebar .brand-mark{width:44px;height:44px;flex-shrink:0}
+  .sidebar .brand>div:last-child,.sidebar-label,
+  .nav-link>span,.nav-link .active-dot,
+  .sidebar .offline-indicator,
+  .sidebar-footer>span:nth-child(2),.sidebar-footer>svg{display:none}
+  .nav-list{gap:6px}
+  .nav-link{justify-content:center;width:52px;height:46px;padding:0}
+  .nav-link svg{flex-shrink:0}
+  .sidebar-bottom{width:100%}
+  .logout-sidebar{font-size:0;justify-content:center;width:52px;padding:12px 0}
+  .logout-sidebar svg{width:19px;height:19px;flex-shrink:0}
+  .sidebar-footer{padding:12px 0 0;justify-content:center}
+  .topbar{padding-inline:15px}
+  .content{padding:16px 14px 12px}
+  .date-badge{font-size:10px}
+}
+@media(max-width:780px){
+  .pos-layout{grid-template-columns:minmax(0,1fr)}
+  .cart-panel{position:relative;top:auto;min-height:0}
+  .cart-lines{max-height:235px}
+  .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .page-heading{align-items:flex-start;flex-wrap:wrap;gap:12px}
+  .page-heading h1{font-size:23px}
+  .page-heading .primary-btn{min-height:39px}
+  .stat-card{min-height:115px}
+  .stats-grid{gap:10px}
+  .form-grid.two-cols{grid-template-columns:minmax(0,1fr)}
+  .edit-product-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .product-insight-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .customer-financials{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .footer{flex-wrap:wrap;gap:6px}
+}
+@media(max-width:560px){
+  .sidebar{width:58px;padding-inline:5px}
+  .sidebar .brand-mark{height:39px;width:39px}
+  .nav-link,.logout-sidebar{width:48px;height:41px}
+  .sidebar-footer .avatar-small{width:33px}
+  .topbar{height:58px;padding:0 10px}
+  .topbar .date-badge{display:none}
+  .topbar-actions{gap:0}
+  .top-avatar{width:31px;height:31px;font-size:10px}
+  .breadcrumb{gap:7px;font-size:10px}
+  .breadcrumb>span:first-of-type,.breadcrumb>span:nth-of-type(2){display:none}
+  .back-nav{width:29px;height:29px}
+  .content{padding:12px 9px}
+  .panel{padding:14px 12px}
+  .stats-grid{gap:8px}
+  .stat-card{padding:13px 10px}
+  .stat-value{font-size:17px}
+  .product-grid{gap:8px}
+  .product-picture{height:100px}
+  .product-body{padding:9px}
+  .page-heading h1{font-size:20px}
+  .overview-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .customer-summary-grid{grid-template-columns:minmax(0,1fr)}
+  .customer-financials{grid-template-columns:minmax(0,1fr)}
+  .modal-overlay{padding:8px}
+  .modal{padding:16px 13px;max-height:calc(100dvh - 16px)}
+  .edit-product-row{grid-template-columns:minmax(0,1fr)}
+  .catalog-toolbar .select-wrap{flex:1 1 110px}
+  .catalog-toolbar .select-wrap select{width:100%}
+}
+@media print{
+  html,body,#root{width:auto!important;max-width:none!important;overflow:visible!important}
+  .sidebar,.topbar{display:none!important}
+}
+
+/* VestiFlow : verrouiller la fenêtre de travail.
+   Les deux colonnes ont des défilements verticaux indépendants.
+   Ne PAS masquer le contenu en forçant des dimensions plus larges que le PC. */
+html,body,#root{height:100%;height:100dvh;max-height:100dvh;overflow:hidden}
+.shell{
+  display:flex;
+  width:100%;
+  height:100vh;height:100dvh;
+  min-height:0;max-height:100dvh;
+  overflow:hidden;
+  overscroll-behavior:contain;
+}
+.shell>.sidebar{
+  position:relative;
+  inset:auto;
+  align-self:stretch;
+  height:100%;max-height:100%;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior-y:contain;
+  scrollbar-width:none;
+}
+.shell>.sidebar::-webkit-scrollbar{display:none}
+.shell>.main{
+  flex:1 1 0;
+  display:flex;
+  flex-direction:column;
+  width:0;
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+  position:relative;
+}
+.shell>.main>.topbar{
+  position:relative;
+  top:auto;
+  z-index:8;
+  flex:0 0 auto;
+  min-height:0;
+}
+.shell>.main>.content{
+  flex:1 1 auto;
+  min-height:0;
+  height:0;
+  max-height:100%;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#c5d5e8 transparent;
+  scroll-padding-top:12px;
+}
+.shell>.main>.content::-webkit-scrollbar{width:6px}
+.shell>.main>.content::-webkit-scrollbar-thumb{background:#c5d5e8;border-radius:8px}
+.shell>.main>.content>.footer{min-width:0}
+.shell>.main>.content .table-wrap{
+  width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+}
+.shell .cart-panel{top:14px}
+@media(max-width:780px){.shell .cart-panel{position:relative;top:auto}}
+/* Le login possède son propre défilement vertical dans les petites résolutions. */
+.compact-login-page{height:100vh;height:100dvh;min-height:0;max-height:100dvh;overflow-y:auto;overscroll-behavior:contain}
+@media print{
+  html,body,#root{height:auto!important;max-height:none!important;overflow:visible!important}
+  .shell{height:auto!important;max-height:none!important;overflow:visible!important}
+}

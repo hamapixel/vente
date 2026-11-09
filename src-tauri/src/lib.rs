@@ -729,7 +729,7 @@ pub fn run() {
             commerce::product_history
         ])
         .run(tauri::generate_context!())
-        .expect("Erreur de lancement de ModeStock Local");
+        .expect("Erreur de lancement de VestiFlow");
 }
 
 

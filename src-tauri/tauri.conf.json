@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ModeStock Local",
-  "version": "0.1.0",
+  "productName": "VestiFlow",
+  "version": "0.2.1",
   "identifier": "ml.modestock.local",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -12,12 +12,15 @@
   "app": {
     "windows": [
       {
-        "title": "ModeStock Local",
-        "width": 1360,
-        "height": 840,
-        "minWidth": 1060,
-        "minHeight": 680,
-        "backgroundColor": "#f4f6fa"
+        "title": "VestiFlow",
+        "width": 1180,
+        "height": 690,
+        "minWidth": 520,
+        "minHeight": 360,
+        "backgroundColor": "#f4f6fa",
+        "center": true,
+        "maximized": true,
+        "resizable": true
       }
     ],
     "security": {

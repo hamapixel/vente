@@ -1,10 +1,10 @@
-# ModeStock Local — Recette sécurité et validation client
+# VestiFlow — Recette sécurité et validation client
 
 La version ne sera commercialisable qu'après exécution de cette liste sur un PC Windows de démonstration, avec une vraie imprimante.
 
 ## Interface et authentification
 
-- [ ] Login compact, centré, avec logo ModeStock ou logo du commerçant en haut.
+- [ ] Login compact, centré, avec logo VestiFlow ou logo du commerçant en haut.
 - [ ] Création du compte administrateur puis reconnexion après fermeture et réouverture.
 - [ ] Mot de passe incorrect rejeté, blocage temporaire après cinq échecs.
 - [ ] Déconnexion bloque les commandes métier SQLite.
@@ -63,6 +63,18 @@ La version ne sera commercialisable qu'après exécution de cette liste sur un P
 - [ ] Double validation d'un règlement : un seul paiement enregistré.
 - [ ] Le ticket montre total, payé, reste à payer et nom du client.
 - [ ] La fiche client affiche TOUTES ses ventes, même si l'historique global dépasse 1 000 ventes.
-- [ ] Conserver créances et paiements après redémarrage de ModeStock et mise à jour de la base.
+- [ ] Conserver créances et paiements après redémarrage de VestiFlow et mise à jour de la base.
 - [ ] Anciennes ventes antérieures aux créances migrées **une seule fois** comme intégralement payées.
 - [ ] Rapport « ventes du jour » distinct des « encaissements du jour » : les règlements de dettes anciens sont comptés dans l'encaissement, pas comme une nouvelle vente.
+
+## F. VestiFlow 0.2.1 — ProBook, fenêtre et migration
+
+- [ ] Sur 1366×768 à 100 % et 125 %, aucun défilement horizontal de la fenêtre entière.
+- [ ] Sur 1024×600, le menu vertical et le bandeau supérieur restent visibles.
+- [ ] Sur 800×600, les panneaux se réorganisent sans couper les boutons principaux.
+- [ ] Sur ProBook avec mise à l'échelle 150 %, le login reste entièrement accessible ou défile verticalement sans sortir de la fenêtre.
+- [ ] Les tableaux riches défilent uniquement dans leur propre zone.
+- [ ] Ancien ModeStock Local sur deuxième PC : sauvegarde externe réussie, données contrôlées avant installation.
+- [ ] Après installation de VestiFlow 0.2.1 : même utilisateur Windows, même compte de connexion applicatif, même profil, mêmes produits, ventes et créances.
+- [ ] Aucune nouvelle première configuration administrateur si un compte existait dans l'ancienne base.
+- [ ] Ne désinstaller l'ancienne application qu'après essais concluants et second backup externe.
