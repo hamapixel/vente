@@ -720,7 +720,7 @@ pub fn run() {
             get_shop,update_shop,backup_now,get_receipt,
             auth_status,get_login_brand,register_admin,login,logout,
             commerce::create_customer,commerce::update_customer,
-            commerce::list_customers,commerce::list_customer_payments,
+            commerce::list_customers,commerce::list_customer_sales,commerce::list_customer_payments,
             commerce::record_payment,commerce::update_product,
             commerce::product_history
         ])
