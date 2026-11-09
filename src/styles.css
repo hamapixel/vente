@@ -105,3 +105,69 @@
   .print-only .ticket-preview.a4{width:185mm!important;padding:8mm!important}
   .print-only .ticket-table{width:100%!important}
 }
+
+
+/* Compact, premium login: centered card, not a full-width split screen */
+.compact-login-page{
+  min-height:100vh;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:42px 24px 25px;
+  background:radial-gradient(circle at 12% 8%,#e3efff 0,transparent 35%),
+             radial-gradient(circle at 90% 90%,#e6f5ee 0,transparent 31%),
+             #f4f7fc;
+  position:relative;
+}
+.compact-login-card{
+  width:min(100%,414px);
+  padding:33px 35px 26px;
+  border:1px solid #e5ebf4;
+  border-radius:22px;
+  background:#fff;
+  box-shadow:0 22px 65px rgba(30,53,88,.10),0 3px 13px rgba(30,53,88,.035);
+}
+.compact-login-brand{text-align:center;margin-bottom:26px}
+.compact-login-logo{
+  width:64px;height:64px;margin:0 auto 13px;border-radius:18px;
+  background:linear-gradient(145deg,#327cda,#2460b6);
+  color:white;display:grid;place-items:center;overflow:hidden;
+  box-shadow:0 9px 21px rgba(36,96,182,.22)
+}
+.compact-login-logo img{height:100%;width:100%;object-fit:contain;background:white;padding:5px}
+.compact-login-appname{font-size:22px;font-weight:800;letter-spacing:-.7px;color:#203550}
+.compact-login-appname span{color:#2f75c2}
+.compact-login-shop{margin:6px 0 0;font-size:11px;font-weight:650;color:#788aa2;max-width:100%;overflow-wrap:anywhere}
+.compact-login-heading{text-align:center;margin-bottom:23px}
+.compact-login-eyebrow{display:inline-flex;align-items:center;gap:6px;color:#4d84c7;font-size:9.5px;font-weight:800;letter-spacing:1.25px}
+.compact-login-heading h1{font-size:24px;line-height:1.25;color:#1b2e49;letter-spacing:-.8px;margin:11px 0 7px}
+.compact-login-heading p{font-size:12px;color:#8294a9;margin:0;line-height:1.6}
+.compact-login-form{display:flex;flex-direction:column;gap:9px}
+.compact-login-form>label{font-size:11.5px;font-weight:700;color:#51667f;margin-top:8px}
+.compact-login-form>input,.compact-password-field>input{
+  width:100%;height:44px;border:1px solid #dce5f1;border-radius:10px;
+  background:#fff;color:#273d59;padding:0 13px;font-size:12px;outline:none
+}
+.compact-login-form>input::placeholder,.compact-password-field>input::placeholder{color:#a1afc0}
+.compact-login-form>input:focus,.compact-password-field>input:focus{border-color:#5f96d5;box-shadow:0 0 0 3px #5f96d51a}
+.compact-password-field{position:relative}
+.compact-password-field>input{padding-right:47px}
+.compact-password-field button{position:absolute;right:5px;top:5px;width:35px;height:35px;display:grid;place-items:center;border:0;background:transparent;color:#7e92ac;border-radius:7px}
+.compact-password-field button:hover{background:#f0f5fc}
+.compact-login-submit{margin-top:15px;height:46px;border:0;border-radius:10px;display:flex;justify-content:center;align-items:center;gap:10px;background:#2b6cbd;color:#fff;font-size:12.5px;font-weight:800;box-shadow:0 7px 15px #2b6cbd2b}
+.compact-login-submit:hover:not(:disabled){background:#225caa}
+.compact-login-trust{display:flex;gap:22px;justify-content:center;align-items:center;margin-top:24px;border-top:1px solid #eff2f6;padding-top:18px;color:#8799ad;font-size:10px}
+.compact-login-trust span{display:flex;align-items:center;gap:6px}
+.compact-login-bottom{font-size:10px;color:#94a4b7;margin:22px 0 0;text-align:center}
+@media(max-width:600px){.compact-login-page{padding:15px}.compact-login-card{padding:27px 24px;border-radius:17px}}
+
+/* Unified instant search for checkout, product catalogue and stock */
+.catalog-toolbar.compact-toolbar{margin-bottom:18px}
+.catalog-toolbar.compact-toolbar .search-field{max-width:600px}
+.catalog-toolbar .search-field input::placeholder{color:#9babc0}
+.search-clear{border:0;background:#f0f4fa;border-radius:6px;color:#7790ad;display:grid;place-items:center;flex-shrink:0;width:25px;height:25px}
+.search-clear:hover{background:#e2edf9;color:#336db2}
+.search-count{font-size:11px;color:#8a9aac;white-space:nowrap;align-self:center}
+@media print{.compact-login-page{display:none!important}}
