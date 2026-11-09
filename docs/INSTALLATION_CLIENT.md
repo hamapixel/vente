@@ -1,4 +1,4 @@
-# ModeStock Local — Installation chez un client (Windows)
+# VestiFlow — Installation chez un client (Windows)
 
 **Version pilote seulement.** Ne pas utiliser avec de vraies ventes avant les tests de sauvegarde/restauration, d'imprimante, de retours et de mises à jour.
 
@@ -12,8 +12,8 @@ Conditions : Node, Rust MSVC, Microsoft Build Tools C++, SDK Windows et connexio
 
 ~~~powershell
 cd "$HOME\vente"
-git switch feature/modestock-local-foundation
-git pull --ff-only origin feature/modestock-local-foundation
+git switch main
+git pull --ff-only origin main
 npm install
 npm run tauri icon public/brand.svg
 npm run build
@@ -38,7 +38,7 @@ L'installateur n'est **pas encore signé automatiquement**. Un certificat de sig
 
 1. Vérifier Windows 10/11 64 bits, compte Windows protégé, disque et imprimante cible.
 2. Installer depuis la clé USB sur un poste de **test**, sans connexion Internet.
-3. Ouvrir le raccourci ModeStock. Créer un administrateur avec un mot de passe fort.
+3. Ouvrir le raccourci VestiFlow. Créer un administrateur avec un mot de passe fort.
 4. Paramètres : renseigner boutique, téléphone, adresse, logo, en-tête et pied de reçu.
 5. Ajouter un maillot (M/L/XL) et une chaussure (41/42/43).
 6. Tester la recherche instantanée, le stock de chaque variante, les ventes, les marges et le reçu 80 mm/A4.
@@ -59,3 +59,9 @@ Documentation de recette : voir RECETTE_SECURITE.md.
 Guides officiels :
 - https://v2.tauri.app/distribute/windows-installer/
 - https://v2.tauri.app/distribute/sign/windows/
+
+## Transition de l'ancien ModeStock Local (0.1.0) vers VestiFlow (0.2.0)
+
+**Ne désinstallez pas l'ancien logiciel avant d'avoir testé VestiFlow.** Cette transition renomme le produit Windows et peut créer une deuxième entrée dans Applications installées. Les deux applications utilisent le **même dossier de données** si lancées depuis le **même compte utilisateur Windows** : `%LOCALAPPDATA%\\ml.modestock.local\\modestock.db`.
+
+Pour une première mise à jour, utiliser le protocole de [test de conservation des données](MISE_A_JOUR_VESTIFLOW.md). Par la suite, les mises à jour 0.2.x → 0.3.x conserveront le nom Windows VestiFlow. Ne jamais installer simultanément une version ancienne et nouvelle en cours d'exécution.
