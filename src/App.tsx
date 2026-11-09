@@ -348,11 +348,11 @@ export default function App() {
       <div className="sidebar-label">ESPACE DE GESTION</div>
       <nav className="nav-list">{navigation.map(item => {
         const Icon = item.icon;
-        return <button key={item.id} className={"nav-link " + (page === item.id ? "active" : "")} onClick={() => navigate(item.id)}>
+        return <button key={item.id} type="button" title={item.label} aria-label={item.label} aria-current={page === item.id ? "page" : undefined} className={"nav-link " + (page === item.id ? "active" : "")} onClick={() => navigate(item.id)}>
           <Icon size={19} strokeWidth={1.9}/><span>{item.label}</span>{page === item.id && <span className="active-dot"/>}
         </button>;
       })}</nav>
-      <div className="sidebar-bottom"><div className="offline-indicator"><span className="live-dot"/> Mode hors ligne actif</div><button className="logout-sidebar" onClick={()=>void doLogout()}><LogOut size={17}/> Déconnexion</button><div className="sidebar-footer"><span className="avatar-small"><Shirt size={18}/></span><span><strong>{shop.name}</strong><small>{session.username} · Administrateur</small></span><MoreHorizontal size={18}/></div></div>
+      <div className="sidebar-bottom"><div className="offline-indicator"><span className="live-dot"/> Mode hors ligne actif</div><button className="logout-sidebar" type="button" aria-label="Déconnexion" title="Déconnexion" onClick={()=>void doLogout()}><LogOut size={17}/> Déconnexion</button><div className="sidebar-footer"><span className="avatar-small"><Shirt size={18}/></span><span><strong>{shop.name}</strong><small>{session.username} · Administrateur</small></span><MoreHorizontal size={18}/></div></div>
     </aside>
     <main className="main">
       <header className="topbar">
