@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AuthStatus, CartLine, Customer, CustomerInput, Dashboard, LoginBrand, NewProduct, PaymentEntry, ProductEdit, ProductMovement, Receipt, ReceiptDocument, ReportDay, Sale, Settlement, Shop, UserSession, Variant } from "./types";
+import type { AuthStatus, CartLine, Customer, CustomerInput, CustomerSale, Dashboard, LoginBrand, NewProduct, PaymentEntry, ProductEdit, ProductMovement, Receipt, ReceiptDocument, ReportDay, Sale, Settlement, Shop, UserSession, Variant } from "./types";
 
 // Dans un onglet navigateur ordinaire, l'API Tauri/SQLite n'est pas disponible.
 function desktopInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -26,6 +26,7 @@ export const api = {
     desktopInvoke<Receipt>("checkout", { input: { requestId, items, discount, paymentMethod, customerId, paymentReceived } }),
   getDashboard: () => desktopInvoke<Dashboard>("get_dashboard"),
   listCustomers: () => desktopInvoke<Customer[]>("list_customers"),
+  listCustomerSales: (customerId: number) => desktopInvoke<CustomerSale[]>("list_customer_sales", { customerId }),
   createCustomer: (input: CustomerInput) => desktopInvoke<number>("create_customer", { input }),
   updateCustomer: (id: number, input: CustomerInput) => desktopInvoke<void>("update_customer", { id, input }),
   listCustomerPayments: (customerId: number) => desktopInvoke<PaymentEntry[]>("list_customer_payments", { customerId }),
