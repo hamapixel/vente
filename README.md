@@ -63,12 +63,20 @@ Les sommes sont distinguées : **montant de vente** (la valeur des articles vend
 
 **Important** : l'interface et les fonctionnalités restent en phase de validation. Les retours et annulations, la restauration externe vérifiée, la signature de l'installateur et la recette sur de vraies imprimantes sont encore nécessaires avant de vendre le logiciel.
 
-## Passage de ModeStock Local à VestiFlow 0.2.2
+## Passage de ModeStock Local à VestiFlow 0.2.3
 
 Le **nom commercial** et l'installateur sont maintenant « VestiFlow » (sans « Local »). L'identifiant technique **ml.modestock.local** et le fichier **modestock.db** sont préservés : une installation sous **le même compte Windows** peut retrouver les données déjà présentes. En raison du changement de `productName`, la version 0.2 peut s'installer à côté de ModeStock Local 0.1.0 ; **ne désinstallez pas l'ancienne version avant vérification**. Ne pas utiliser les deux applications simultanément. Le guide de migration est dans [docs/MISE_A_JOUR_VESTIFLOW.md](docs/MISE_A_JOUR_VESTIFLOW.md).
 
 L'interface est adaptative pour les ordinateurs portables de petite taille et le login a été compacté. Les panneaux de navigation restent fixes ; les tableaux peuvent défiler dans leur propre cadre sans imposer un défilement horizontal à toute la fenêtre.
 
-## Barre latérale fixe — VestiFlow 0.2.2
+## Barre latérale fixe — VestiFlow 0.2.3
 
 À la suite du test vidéo sur ProBook, le sidebar n'est **plus une zone de défilement** : la molette ne déplace jamais le logo ni les menus. Les liens sont plus compacts selon la hauteur de l'écran ; sous 560 px de haut, des éléments secondaires du pied de menu sont masqués pour conserver les huit modules et Déconnexion visibles. Le contenu de la page continue à défiler indépendamment.
+
+## Caisse à défilement indépendant — VestiFlow 0.2.3
+
+La page **Caisse & ventes** est organisée en deux panneaux : la liste des produits défile uniquement à gauche, tandis que le panier entier (articles, client, remise, type de règlement, validation) défile uniquement à droite. Les barres de défilement de ces deux zones sont masquées, mais la molette, le clavier et le pavé tactile fonctionnent. La recherche de produits, le titre du panier, l'en-tête général et le menu principal ne bougent pas. Sur les écrans très étroits, les panneaux passent l'un au-dessus de l'autre avec des zones de défilement indépendantes.
+
+## Stabilité d'affichage sur ProBook et pavé tactile
+
+VestiFlow bloque désormais les gestes horizontaux dominants et le zoom WebView2 déclenché par pincement du pavé tactile / raccourcis Ctrl+molette ou Ctrl+Plus/Moins. Les gestes verticaux restent actifs sur les panneaux qui doivent défiler. Les cartes et boutons ne se déplacent plus au survol. Les tableaux se limitent à leur zone et les désignations longues passent à la ligne sans déplacer le document. Dans le formulaire **Ajouter un produit** et la prévisualisation **Ticket/Facture**, l'en-tête et les actions restent stables tandis que seul le contenu central peut défiler. Les tickets imprimés utilisent des colonnes proportionnelles et répartissent les noms longs sur plusieurs lignes.

@@ -60,8 +60,12 @@ Guides officiels :
 - https://v2.tauri.app/distribute/windows-installer/
 - https://v2.tauri.app/distribute/sign/windows/
 
-## Transition de l'ancien ModeStock Local (0.1.0) vers VestiFlow (0.2.2)
+## Transition de l'ancien ModeStock Local (0.1.0) vers VestiFlow (0.2.3)
 
 **Ne désinstallez pas l'ancien logiciel avant d'avoir testé VestiFlow.** Cette transition renomme le produit Windows et peut créer une deuxième entrée dans Applications installées. Les deux applications utilisent le **même dossier de données** si lancées depuis le **même compte utilisateur Windows** : `%LOCALAPPDATA%\\ml.modestock.local\\modestock.db`.
 
 Pour une première mise à jour, utiliser le protocole de [test de conservation des données](MISE_A_JOUR_VESTIFLOW.md). Par la suite, les mises à jour 0.2.x → 0.3.x conserveront le nom Windows VestiFlow. Ne jamais installer simultanément une version ancienne et nouvelle en cours d'exécution.
+
+## Affichage caisse VestiFlow 0.2.3
+
+La liste des produits et le panier possèdent deux défilements internes indépendants. La barre latérale demeure immobile et les deux barres de scroll sont invisibles. Vérifier le comportement sur l'ordinateur cible avant la mise en service ; ne pas considérer les tests CI comme une validation visuelle de la résolution ProBook.

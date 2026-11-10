@@ -67,7 +67,7 @@ La version ne sera commercialisable qu'après exécution de cette liste sur un P
 - [ ] Anciennes ventes antérieures aux créances migrées **une seule fois** comme intégralement payées.
 - [ ] Rapport « ventes du jour » distinct des « encaissements du jour » : les règlements de dettes anciens sont comptés dans l'encaissement, pas comme une nouvelle vente.
 
-## F. VestiFlow 0.2.2 — ProBook, fenêtre et migration
+## F. VestiFlow 0.2.3 — ProBook, fenêtre et migration
 
 - [ ] Sur 1366×768 à 100 % et 125 %, aucun défilement horizontal de la fenêtre entière.
 - [ ] Sur 1024×600, le menu vertical et le bandeau supérieur restent visibles.
@@ -75,14 +75,36 @@ La version ne sera commercialisable qu'après exécution de cette liste sur un P
 - [ ] Sur ProBook avec mise à l'échelle 150 %, le login reste entièrement accessible ou défile verticalement sans sortir de la fenêtre.
 - [ ] Les tableaux riches défilent uniquement dans leur propre zone.
 - [ ] Ancien ModeStock Local sur deuxième PC : sauvegarde externe réussie, données contrôlées avant installation.
-- [ ] Après installation de VestiFlow 0.2.2 : même utilisateur Windows, même compte de connexion applicatif, même profil, mêmes produits, ventes et créances.
+- [ ] Après installation de VestiFlow 0.2.3 : même utilisateur Windows, même compte de connexion applicatif, même profil, mêmes produits, ventes et créances.
 - [ ] Aucune nouvelle première configuration administrateur si un compte existait dans l'ancienne base.
 - [ ] Ne désinstaller l'ancienne application qu'après essais concluants et second backup externe.
 
-## VestiFlow 0.2.2 — barre latérale absolument fixe
+## VestiFlow 0.2.3 — barre latérale absolument fixe
 
 - [ ] Sur PC ProBook et 1366×768, déplacer la souris sur le sidebar puis utiliser la molette : le logo, les huit modules et la déconnexion ne se déplacent pas.
 - [ ] Faire glisser sur la zone latérale : aucun défilement ni saut du sidebar.
 - [ ] Survoler le contenu central et utiliser la molette : la page défile seule ; barre supérieure et menu immobiles.
 - [ ] Sur une fenêtre de faible hauteur (560 px et 430 px), les huit liens de navigation restent accessibles sans défilement du sidebar ; certains éléments secondaires du pied de menu peuvent être masqués.
 - [ ] Après installation sur le deuxième PC, vérifier anciennes ventes, stocks, créances, identifiant et boutique avant d'effacer l'ancien installateur ou d'autres fichiers.
+
+## VestiFlow 0.2.3 — Caisse à deux zones indépendantes
+
+- [ ] Sur PC 1366×768 et ProBook : survoler la liste de produits, tourner la molette : **seuls les produits défilent**. Panier, recherche, sidebar et en-tête restent immobiles.
+- [ ] Survoler le panier et tourner la molette : **seuls les articles et champs de règlement défilent**. Grille de produits et menu immobiles.
+- [ ] Vérifier que les deux zones défilent sans barre visible, mais restent pilotables au pavé tactile et au clavier Tab + flèches.
+- [ ] Avec plus de 10 produits et 6 lignes dans le panier, vérifier que les derniers articles et le bouton Valider la vente sont accessibles.
+- [ ] Vérifier le paiement total, acompte/crédit, recherche client instantanée et ticket.
+- [ ] Sur petite fenêtre < 780px de largeur, les deux zones restent accessibles en colonne sans défilement horizontal de toute la fenêtre.
+- [ ] Réouvrir l’application : stocks, ventes et dettes inchangés après mise à jour 0.2.2 → 0.2.3.
+
+## Stabilité universelle — pavé tactile, formulaires, tickets
+
+- [ ] Sur le ProBook : glisser horizontalement sur pavé tactile dans Catalogue, Stock, Ventes, Rapports, Paramètres, Clients : le contenu de toute la fenêtre ne se déplace jamais latéralement.
+- [ ] Geste vertical sur les listes : le contenu normal défile, mais menu latéral et en-tête restent immobiles.
+- [ ] Tester pincement de deux doigts et Ctrl+molette : la WebView ne change pas de zoom involontairement ; Ctrl+C/Ctrl+V restent disponibles.
+- [ ] Vérifier que les boutons et cartes ne sautent plus lorsqu'on passe la souris dessus.
+- [ ] Créer un produit d'essai avec un nom de plus de 100 caractères, plusieurs variantes, couleurs longues et prix ; aucune zone ne doit déborder horizontalement.
+- [ ] Dans Ajouter un produit, défiler les variantes : titre et boutons Annuler/Enregistrer restent visibles.
+- [ ] Imprimer une vente avec un nom d'article très long sur ticket thermique 80 mm et A4 : aucune ligne n'est coupée ni projetée hors de la largeur du document ; titre et bouton Imprimer accessibles dans la fenêtre.
+- [ ] À 1366×768, 1024×600 et zoom Windows 125/150 %, inspecter la caisse, le catalogue et les modales.
+- [ ] Confirmer après mise à jour : identifiant Windows, données SQLite, stocks, ventes, dettes et paramètres sauvegardés.

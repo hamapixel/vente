@@ -1,10 +1,10 @@
-# VestiFlow 0.2.2 — Tester une mise à niveau sans perte de données
+# VestiFlow 0.2.3 — Tester une mise à niveau sans perte de données
 
 Ce protocole concerne uniquement un PC de démonstration. Ne pas utiliser une unique base de ventes réelles pour essayer une mise à niveau.
 
 ## Données conservées
 
-- Nouveau nom affiché et installateur : **VestiFlow**, version **0.2.2**.
+- Nouveau nom affiché et installateur : **VestiFlow**, version **0.2.3**.
 - Identifiant Tauri INCHANGÉ : ml.modestock.local.
 - Fichier SQLite INCHANGÉ : %LOCALAPPDATA%\ml.modestock.local\modestock.db.
 - Données existantes conservées : produits, variantes, stocks, ventes, fiches clients, dettes, paiements, compte administrateur, logo et paramètres.
@@ -52,14 +52,14 @@ npm run tauri build
 Get-ChildItem ".\src-tauri\target\release\bundle\nsis" -Filter "VestiFlow*setup.exe"
 ~~~
 
-Copier VestiFlow_0.2.2_x64-setup.exe sur clé USB. Ne pas confondre avec l'ancien installateur ModeStock Local_0.1.0.
+Copier VestiFlow_0.2.3_x64-setup.exe sur clé USB. Ne pas confondre avec l'ancien installateur ModeStock Local_0.1.0.
 
 ## 3. Installer sur le deuxième PC
 
 1. Se connecter au MÊME compte Windows que l'ancien logiciel.
 2. Vérifier que ModeStock Local est totalement fermé.
 3. NE PAS désinstaller ModeStock Local pour l'instant.
-4. Lancer l'installateur VestiFlow 0.2.2. Il peut afficher une seconde entrée dans Applications installées car le nom commercial Windows change.
+4. Lancer l'installateur VestiFlow 0.2.3. Il peut afficher une seconde entrée dans Applications installées car le nom commercial Windows change.
 5. Ne pas demander à un client de désactiver la sécurité Windows pour passer les avertissements d'un installateur non signé.
 
 ## 4. Vérifier APRÈS la mise à jour
@@ -86,6 +86,14 @@ Conserver les deux installateurs, les sauvegardes et les références notées av
 
 Une fois VestiFlow 0.2 installé, conserver le nom du produit Windows VestiFlow et l'identifiant technique ml.modestock.local. Les futures migrations doivent être non destructives. L'export externe et la restauration automatisée restent à finaliser avant la distribution commerciale.
 
-## Régression 0.2.2 sur le ProBook
+## Régression 0.2.3 sur le ProBook
 
 Survoler le menu avec la souris et tourner la molette : **rien ne doit bouger dans la barre latérale**. Le logo et les 8 rubriques restent à la même position. Ensuite survoler le contenu et faire défiler : seule cette partie doit bouger, l'en-tête restant fixe. Vérifier les produits, clients, stocks, ventes et dettes avant et après la mise à jour.
+
+## VestiFlow 0.2.3 — test de mise à jour de la caisse
+
+Avant installation, créer une sauvegarde SQLite et la copier sur une clé USB. Fermer VestiFlow 0.2.2, installer VestiFlow 0.2.3 sous le même compte Windows, puis vérifier la conservation de la boutique, du stock, des anciennes ventes, des clients et des dettes. Dans la caisse, tester la molette séparément sur les produits et sur le panier : chaque zone doit défiler seule, sans afficher de barre. Cette mise à jour ne change pas le chemin de la base ni son schéma.
+
+## Vérification du rendu après mise à jour
+
+Le correctif de stabilité concerne les gestes du pavé tactile et le rendu frontend, sans changement de base SQLite. Avant réinstallation sur un autre PC, faire une sauvegarde externe. Après mise à jour, vérifier séparément les listes, les formulaires Ajouter un produit / Modifier, ainsi que l'aperçu et l'impression A4/80 mm avec une désignation d'article longue. Une validation réelle du ProBook reste nécessaire, en complément de la CI GitHub.
