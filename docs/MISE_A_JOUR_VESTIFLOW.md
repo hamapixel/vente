@@ -93,3 +93,7 @@ Survoler le menu avec la souris et tourner la molette : **rien ne doit bouger da
 ## VestiFlow 0.2.3 — test de mise à jour de la caisse
 
 Avant installation, créer une sauvegarde SQLite et la copier sur une clé USB. Fermer VestiFlow 0.2.2, installer VestiFlow 0.2.3 sous le même compte Windows, puis vérifier la conservation de la boutique, du stock, des anciennes ventes, des clients et des dettes. Dans la caisse, tester la molette séparément sur les produits et sur le panier : chaque zone doit défiler seule, sans afficher de barre. Cette mise à jour ne change pas le chemin de la base ni son schéma.
+
+## Vérification du rendu après mise à jour
+
+Le correctif de stabilité concerne les gestes du pavé tactile et le rendu frontend, sans changement de base SQLite. Avant réinstallation sur un autre PC, faire une sauvegarde externe. Après mise à jour, vérifier séparément les listes, les formulaires Ajouter un produit / Modifier, ainsi que l'aperçu et l'impression A4/80 mm avec une désignation d'article longue. Une validation réelle du ProBook reste nécessaire, en complément de la CI GitHub.
