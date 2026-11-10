@@ -96,3 +96,15 @@ La version ne sera commercialisable qu'après exécution de cette liste sur un P
 - [ ] Vérifier le paiement total, acompte/crédit, recherche client instantanée et ticket.
 - [ ] Sur petite fenêtre < 780px de largeur, les deux zones restent accessibles en colonne sans défilement horizontal de toute la fenêtre.
 - [ ] Réouvrir l’application : stocks, ventes et dettes inchangés après mise à jour 0.2.2 → 0.2.3.
+
+## Stabilité universelle — pavé tactile, formulaires, tickets
+
+- [ ] Sur le ProBook : glisser horizontalement sur pavé tactile dans Catalogue, Stock, Ventes, Rapports, Paramètres, Clients : le contenu de toute la fenêtre ne se déplace jamais latéralement.
+- [ ] Geste vertical sur les listes : le contenu normal défile, mais menu latéral et en-tête restent immobiles.
+- [ ] Tester pincement de deux doigts et Ctrl+molette : la WebView ne change pas de zoom involontairement ; Ctrl+C/Ctrl+V restent disponibles.
+- [ ] Vérifier que les boutons et cartes ne sautent plus lorsqu'on passe la souris dessus.
+- [ ] Créer un produit d'essai avec un nom de plus de 100 caractères, plusieurs variantes, couleurs longues et prix ; aucune zone ne doit déborder horizontalement.
+- [ ] Dans Ajouter un produit, défiler les variantes : titre et boutons Annuler/Enregistrer restent visibles.
+- [ ] Imprimer une vente avec un nom d'article très long sur ticket thermique 80 mm et A4 : aucune ligne n'est coupée ni projetée hors de la largeur du document ; titre et bouton Imprimer accessibles dans la fenêtre.
+- [ ] À 1366×768, 1024×600 et zoom Windows 125/150 %, inspecter la caisse, le catalogue et les modales.
+- [ ] Confirmer après mise à jour : identifiant Windows, données SQLite, stocks, ventes, dettes et paramètres sauvegardés.
