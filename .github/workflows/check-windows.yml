@@ -34,6 +34,9 @@ jobs:
         run: npm run build
       - name: Tester la recherche des produits et chaussures
         run: npm run test
+      - name: Tester le ticket dans Edge (5 tailles de fenetre)
+        shell: pwsh
+        run: ./scripts/check-ticket-preview.ps1
       - name: Verifier Rust et Tauri
         run: cargo check --manifest-path src-tauri/Cargo.toml
       - name: Tester la sécurité locale et la préservation SQLite
