@@ -563,3 +563,111 @@ html,body,#root{height:100%;height:100dvh;max-height:100dvh;overflow:hidden}
   html,body,#root{height:auto!important;max-height:none!important;overflow:visible!important}
   .shell{height:auto!important;max-height:none!important;overflow:visible!important}
 }
+
+/* VestiFlow 0.2.3 — Caisse : DEUX scrolls totalement indépendants.
+   L'interface extérieure, la recherche et l'en-tête du panier restent fixes.
+   Les molettes et trackpads peuvent défiler sans barre visible. */
+.shell>.main>.content.content-pos{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  min-height:0;
+}
+.content-pos>.page-heading{flex:0 0 auto;margin-bottom:13px}
+.content-pos>.footer{flex:0 0 auto;padding:9px 0 0}
+.content-pos>.pos-layout{
+  flex:1 1 0;
+  height:0;
+  min-height:0;
+  max-height:100%;
+  width:100%;
+  overflow:hidden;
+  align-items:stretch;
+}
+.content-pos .pos-catalog{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  min-height:0;
+  max-height:100%;
+  overflow:hidden;
+}
+.content-pos .catalog-toolbar{
+  flex:0 0 auto;
+  margin-bottom:11px;
+}
+.content-pos .pos-products-scroll{
+  flex:1 1 0;
+  min-width:0;
+  min-height:0;
+  height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  -ms-overflow-style:none;
+  scrollbar-width:none;
+}
+.content-pos .pos-products-scroll::-webkit-scrollbar,
+.content-pos .cart-scroll::-webkit-scrollbar{
+  display:none;
+  width:0;
+  height:0;
+}
+.content-pos .pos-products-scroll .product-grid{padding:2px 3px 13px 1px}
+.content-pos .pos-layout .cart-panel{
+  position:relative;
+  top:auto;
+  align-self:stretch;
+  height:100%;
+  max-height:100%;
+  min-height:0;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.content-pos .cart-header{
+  flex:0 0 auto;
+  padding:15px 18px;
+  background:#fff;
+  z-index:1;
+}
+.content-pos .cart-scroll{
+  position:relative;
+  flex:1 1 0;
+  min-width:0;
+  min-height:0;
+  height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  -ms-overflow-style:none;
+  scrollbar-width:none;
+}
+.content-pos .cart-lines{
+  flex:0 0 auto;
+  max-height:none;
+  overflow:visible;
+  min-height:0;
+}
+.content-pos .cart-empty{min-height:155px}
+.content-pos .cart-summary{flex:0 0 auto}
+@media(max-width:780px){
+  .content-pos>.pos-layout{
+    grid-template-columns:minmax(0,1fr);
+    grid-template-rows:minmax(0,1.1fr) minmax(0,.9fr);
+    gap:10px;
+  }
+  .content-pos .pos-catalog,.content-pos .pos-layout .cart-panel{height:100%;min-height:0}
+  .content-pos .product-picture{height:95px}
+  .content-pos .cart-empty{min-height:95px}
+}
+@media(max-height:600px){
+  .content-pos>.page-heading{margin-bottom:8px}
+  .content-pos>.page-heading h1{font-size:20px}
+  .content-pos>.page-heading p{display:none}
+  .content-pos>.footer{display:none}
+  .content-pos .catalog-toolbar{margin-bottom:7px}
+}
+@media print{
+  .shell>.main>.content.content-pos{display:none!important}
+}
