@@ -8,7 +8,7 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(tauri.productName).toBe("VestiFlow");
     expect(tauri.app.windows[0].title).toBe("VestiFlow");
     expect(pkg.version).toBe(tauri.version);
-    expect(tauri.version).toBe("0.2.3");
+    expect(tauri.version).toBe("0.2.4");
   });
   it("keeps the old Tauri identifier and existing SQLite filename", () => {
     expect(tauri.identifier).toBe("ml.modestock.local");
