@@ -5,7 +5,7 @@ const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
 const app = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
 const rule = (selector: string) => {
-  const start = css.lastIndexOf(selector + "{");
+  const start = css.indexOf(selector + "{");
   if (start < 0) return "";
   const end = css.indexOf("}", start);
   return css.slice(start, end + 1);
