@@ -477,7 +477,7 @@ export default function App() {
             </div>
           </div>
         </>}
-        <footer className="footer"><span>VestiFlow <b>v0.2.3</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
+        <footer className="footer"><span>VestiFlow <b>v0.2.4</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
       </div>
     </main>
 
