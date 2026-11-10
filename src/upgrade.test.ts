@@ -91,6 +91,7 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(css).toContain("table-layout:fixed;");
     expect(css).toContain(".ticket-table td:first-child{");
     expect(css).toContain("overscroll-behavior-x:none;");
+    expect(css).toContain("overscroll-behavior-y:none;");
     expect(css).toContain("touch-action:pan-y;");
     expect(printMarkup).toContain("item.name");
     expect(css).not.toContain("transform:translateY(-2px)");
