@@ -899,3 +899,15 @@ html,body,#root{
     padding:5px 2px!important;
   }
 }
+
+
+/* Empêcher l'effet de rebond (« tirer » la page) en bout de défilement.
+   La molette verticale et le pavé tactile restent fonctionnels. */
+.shell>.main>.content,
+.content-pos .pos-products-scroll,
+.content-pos .cart-scroll,
+.stable-product-modal>.product-form-scroll,
+.stable-ticket-modal>.ticket-modal-scroll,
+.compact-login-page{
+  overscroll-behavior-y:none;
+}
