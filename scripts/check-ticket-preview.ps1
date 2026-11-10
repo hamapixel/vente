@@ -24,14 +24,26 @@ $cases = @(
 foreach ($case in $cases) {
   $size = "$($case.Width),$($case.Height)"
   $name = "$($case.Width)x$($case.Height)-$($case.Format)"
-  $profile = Join-Path $env:TEMP ("vestiflow-ticket-ci-" + $name)
+  $edgeProfile = Join-Path $env:TEMP ("vestiflow-ticket-ci-" + $name)
   $target = "$uri#$($case.Format)"
 
-  $dom = (& $edge '--headless=new' '--no-first-run' '--no-default-browser-check' '--disable-gpu' '--disable-extensions' '--force-device-scale-factor=1' "--window-size=$size" '--virtual-time-budget=1000' "--user-data-dir=$profile" '--dump-dom' $target 2>$null | Out-String)
-
-  if ($LASTEXITCODE -ne 0) {
-    throw "Microsoft Edge n'a pas pu rendre le ticket $name (code $LASTEXITCODE)."
+  $stdout = Join-Path $env:TEMP ("vestiflow-edge-" + $name + ".out")
+  $stderr = Join-Path $env:TEMP ("vestiflow-edge-" + $name + ".err")
+  $quotedTarget = '"' + $target + '"'
+  $quotedProfile = '"--user-data-dir=' + $edgeProfile + '"'
+  $edgeArgs = @('--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu',
+    '--disable-extensions', '--force-device-scale-factor=1', "--window-size=$size",
+    '--virtual-time-budget=1000', $quotedProfile, '--dump-dom', $quotedTarget)
+  $process = Start-Process -FilePath $edge -ArgumentList $edgeArgs -PassThru -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+  if (-not $process.WaitForExit(25000)) {
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    throw "Microsoft Edge ne répond pas pour $name (limite de 25 secondes)."
   }
+  if ($process.ExitCode -ne 0) {
+    $errors = if (Test-Path $stderr) { Get-Content $stderr -Tail 5 | Out-String } else { '' }
+    throw "Microsoft Edge n'a pas pu rendre le ticket $name (code $($process.ExitCode)). $errors"
+  }
+  $dom = Get-Content -Raw -Path $stdout -Encoding UTF8
 
   $match = [regex]::Match($dom, '<output[^>]*id="geometry"[^>]*data-result="(pass|fail)"[^>]*>')
   if (-not $match.Success) {
