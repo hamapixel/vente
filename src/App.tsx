@@ -361,7 +361,7 @@ export default function App() {
         <div className="breadcrumb"><button type="button" className="back-nav" onClick={goBack} disabled={!navHistory.length} aria-label="Retour à la page précédente" title="Retour"><ArrowLeft size={18}/></button><span>VestiFlow</span><span>/</span><strong>{navigation.find(n => n.id === page)?.label}</strong></div>
         <div className="topbar-actions"><div className="date-badge"><CalendarDays size={16}/>{new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div><span className="top-avatar">{session.username.slice(0,2).toUpperCase()}</span></div>
       </header>
-      <div className="content" ref={contentScrollRef}>
+      <div className={"content" + (page === "pos" ? " content-pos" : "")} ref={contentScrollRef}>
         {isBrowserPreview && <div className="browser-warning"><CircleAlert size={19}/><span><strong>Aperçu navigateur uniquement.</strong> Pour enregistrer des ventes et accéder à SQLite, lancez <code>npm run tauri dev</code> et utilisez la fenêtre de l'application, pas l'onglet localhost.</span></div>}
         {page === "dashboard" && <>
           <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Voici l'activité de votre boutique aujourd'hui.</p></div><button className="primary-btn" onClick={() => navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
@@ -386,9 +386,12 @@ export default function App() {
           <div className="page-heading"><div><div className="eyebrow">POINT DE VENTE</div><h1>Caisse & ventes</h1><p>Sélectionnez des articles, leurs tailles et couleurs, puis encaissez.</p></div><span className="count-chip"><ShoppingCart size={17}/> {cart.reduce((a,b) => a+b.quantity,0)} article(s)</span></div>
           <div className="pos-layout">
             <div className="pos-catalog"><div className="catalog-toolbar"><div className="search-field"><Search size={18}/><input placeholder="Maillot, chaussure, pointure 42, couleur, référence…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="select-wrap"><select value={category} onChange={e => setCategory(e.target.value)}><option>Tous</option>{categories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div>
+              <div className="pos-products-scroll" role="region" aria-label="Liste des produits de la caisse" tabIndex={0}>
               {filtered.length ? <div className="product-grid">{filtered.map(p => <button className="product-card" key={p.id} onClick={() => setSelectedId(p.id)}><div className="product-picture">{p.category === "Chaussures" ? <Footprints size={38} strokeWidth={1.3}/> : <Shirt size={38} strokeWidth={1.3}/>}<span className="product-badge">{p.variants.reduce((a,v) => a+v.quantity,0)} en stock</span></div><div className="product-body"><span className="product-category">{p.category}</span><strong>{p.name}</strong><div className="product-foot"><span>{money(Math.min(...p.variants.map(v => v.salePrice)))}</span><span className="add-circle"><Plus size={17}/></span></div></div></button>)}</div> : <Empty title={products.length ? "Aucun résultat" : "Votre catalogue est vide"} description={products.length ? "Essayez une autre recherche." : "Ajoutez d'abord des vêtements dans l'onglet Catalogue."} icon={Shirt}/>}
+              </div>
             </div>
             <aside className="cart-panel"><div className="cart-header"><div><h2>Panier actuel</h2><p>{cart.length} ligne(s) dans cette vente</p></div><span className="cart-icon"><ShoppingCart size={21}/></span></div>
+              <div className="cart-scroll" role="region" aria-label="Panier et règlement de la vente" tabIndex={0}>
               <div className="cart-lines">{cart.length ? cart.map(c => {const v=catalog.find(v=>v.id===c.variantId); if (!v) return null; return <div className="cart-line" key={c.variantId}><div className="cart-mini"><Shirt size={18}/></div><div className="cart-line-main"><strong>{v.name}</strong><small>{v.size} · {v.color}</small><div className="quantity-control"><button aria-label="Diminuer" onClick={() => changeQuantity(c.variantId,-1)}><Minus size={13}/></button><span>{c.quantity}</span><button aria-label="Augmenter" onClick={() => changeQuantity(c.variantId,1)}><Plus size={13}/></button></div></div><strong className="line-price">{money(v.salePrice*c.quantity)}</strong></div>; }) : <div className="cart-empty"><ShoppingBag size={35}/><strong>Votre panier est vide</strong><span>Choisissez un produit pour commencer.</span></div>}</div>
               <div className="cart-summary">
                 <label className="field-label">Client (facultatif pour une vente comptant)</label>
@@ -410,6 +413,7 @@ export default function App() {
                   {!customerId&&<p className="debt-alert"><CircleAlert size={15}/> Un client identifié est obligatoire pour vendre à crédit.</p>}
                 </>}
                 <label className="field-label">Moyen de paiement</label><div className="select-wrap full"><select value={payment} onChange={e => setPayment(e.target.value)}>{["Espèces","Orange Money","Moov Money","Autre"].map(p=><option key={p}>{p}</option>)}</select><ChevronDown size={16}/></div><button className="primary-btn checkout-btn" disabled={busy || !cart.length || discount > subtotal || (paymentMode==="partial" && !customerId && Number(initialReceived || 0)<total)} onClick={doCheckout}><CreditCard size={18}/>{busy ? "Enregistrement…" : "Valider la vente"}<ArrowRight size={18}/></button></div>
+              </div>
             </aside>
           </div>
         </>}
@@ -473,7 +477,7 @@ export default function App() {
             </div>
           </div>
         </>}
-        <footer className="footer"><span>VestiFlow <b>v0.2.2</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
+        <footer className="footer"><span>VestiFlow <b>v0.2.3</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
       </div>
     </main>
 
