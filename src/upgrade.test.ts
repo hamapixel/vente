@@ -8,7 +8,7 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(tauri.productName).toBe("VestiFlow");
     expect(tauri.app.windows[0].title).toBe("VestiFlow");
     expect(pkg.version).toBe(tauri.version);
-    expect(tauri.version).toBe("0.2.2");
+    expect(tauri.version).toBe("0.2.3");
   });
   it("keeps the old Tauri identifier and existing SQLite filename", () => {
     expect(tauri.identifier).toBe("ml.modestock.local");
@@ -45,4 +45,31 @@ describe("VestiFlow upgrade compatibility", () => {
   
   
   });
+
+  it("separates POS catalog and cart scroll regions and hides both scrollbars", () => {
+    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+    expect(source).toContain('page === "pos" ? " content-pos" : ""');
+    expect(source).toContain('className="pos-products-scroll"');
+    expect(source).toContain('aria-label="Liste des produits de la caisse"');
+    expect(source).toContain('className="cart-scroll"');
+    expect(source).toContain('aria-label="Panier et règlement de la vente"');
+    expect(source).toContain('tabIndex={0}');
+    const catalog = styles.match(/\.content-pos \.pos-products-scroll\s*\{([^}]*)\}/)?.[1];
+    const cart = styles.match(/\.content-pos \.cart-scroll\s*\{([^}]*)\}/)?.[1];
+    expect(catalog).toMatch(/overflow-y\s*:\s*auto/);
+    expect(cart).toMatch(/overflow-y\s*:\s*auto/);
+    expect(catalog).toMatch(/scrollbar-width\s*:\s*none/);
+    expect(cart).toMatch(/scrollbar-width\s*:\s*none/);
+    expect(styles).toContain(".content-pos .cart-scroll::-webkit-scrollbar");
+    expect(styles).toContain(".content-pos .pos-products-scroll::-webkit-scrollbar");
+    expect(styles).toContain("overscroll-behavior:contain;");
+    expect(styles).toContain(".content-pos .cart-lines{");
+    expect(styles).toContain("max-height:none;");
+    expect(styles).toContain(".content-pos>.pos-layout{");
+    expect(styles).toContain("align-items:stretch;");
+    const fixedSidebar = styles.match(/\.shell>\.sidebar\s*\{([^}]*)\}/)?.[1];
+    expect(fixedSidebar).toMatch(/overflow\s*:\s*hidden/);
+  });
+
 });
