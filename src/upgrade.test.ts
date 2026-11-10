@@ -72,4 +72,28 @@ describe("VestiFlow upgrade compatibility", () => {
     expect(fixedSidebar).toMatch(/overflow\s*:\s*hidden/);
   });
 
+
+  it("garde les formulaires, documents et noms longs à l'intérieur de la fenêtre", () => {
+    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+    const css = readFileSync(new URL("./styles.css", import.meta.url), "utf8");
+    const start = readFileSync(new URL("./main.tsx", import.meta.url), "utf8");
+    const printMarkup = readFileSync(new URL("./ReceiptView.tsx", import.meta.url), "utf8");
+    expect(start).toContain("installViewportGestureGuard()");
+    expect(source).toContain('className="modal product-modal stable-product-modal"');
+    expect(source).toContain('className="product-form-scroll"');
+    expect(source).toContain('className="modal ticket-modal stable-ticket-modal"');
+    expect(source).toContain('className="ticket-modal-scroll"');
+    expect(css).toContain(".stable-product-modal>.product-form-scroll{");
+    expect(css).toContain(".stable-ticket-modal>.ticket-modal-scroll{");
+    expect(css).toContain("overflow-wrap:anywhere;");
+    expect(css).toContain(".table-wrap table{");
+    expect(css).toContain("table-layout:fixed;");
+    expect(css).toContain(".ticket-table td:first-child{");
+    expect(css).toContain("overscroll-behavior-x:none;");
+    expect(css).toContain("touch-action:pan-y;");
+    expect(printMarkup).toContain("item.name");
+    expect(css).not.toContain("transform:translateY(-2px)");
+    expect(css).not.toContain("transform:translateY(-1px)");
+  });
+
 });
