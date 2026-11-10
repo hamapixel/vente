@@ -76,3 +76,7 @@ L'interface est adaptative pour les ordinateurs portables de petite taille et le
 ## Caisse à défilement indépendant — VestiFlow 0.2.3
 
 La page **Caisse & ventes** est organisée en deux panneaux : la liste des produits défile uniquement à gauche, tandis que le panier entier (articles, client, remise, type de règlement, validation) défile uniquement à droite. Les barres de défilement de ces deux zones sont masquées, mais la molette, le clavier et le pavé tactile fonctionnent. La recherche de produits, le titre du panier, l'en-tête général et le menu principal ne bougent pas. Sur les écrans très étroits, les panneaux passent l'un au-dessus de l'autre avec des zones de défilement indépendantes.
+
+## Stabilité d'affichage sur ProBook et pavé tactile
+
+VestiFlow bloque désormais les gestes horizontaux dominants et le zoom WebView2 déclenché par pincement du pavé tactile / raccourcis Ctrl+molette ou Ctrl+Plus/Moins. Les gestes verticaux restent actifs sur les panneaux qui doivent défiler. Les cartes et boutons ne se déplacent plus au survol. Les tableaux se limitent à leur zone et les désignations longues passent à la ligne sans déplacer le document. Dans le formulaire **Ajouter un produit** et la prévisualisation **Ticket/Facture**, l'en-tête et les actions restent stables tandis que seul le contenu central peut défiler. Les tickets imprimés utilisent des colonnes proportionnelles et répartissent les noms longs sur plusieurs lignes.
