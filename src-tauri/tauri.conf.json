@@ -20,7 +20,8 @@
         "backgroundColor": "#f4f6fa",
         "center": true,
         "maximized": true,
-        "resizable": true
+        "resizable": true,
+        "zoomHotkeysEnabled": false
       }
     ],
     "security": {
