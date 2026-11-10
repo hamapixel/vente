@@ -917,7 +917,7 @@ html,body,#root{
    Sur les petits PC, l'ancienne modale n'avait qu'un max-height : son conteneur
    flex à base 0 réduisait l'aperçu à une minuscule bande horizontale.
    Une hauteur calculée d'après la vraie surface de la WebView corrige cela. */
-.modal-overlay:has(>.stable-ticket-modal){
+.modal-overlay.ticket-overlay{
   padding:12px;
   align-items:center;
   justify-items:center;
@@ -993,7 +993,7 @@ html,body,#root{
   white-space:nowrap;
 }
 @media(max-height:560px){
-  .modal-overlay:has(>.stable-ticket-modal){padding:8px}
+  .modal-overlay.ticket-overlay{padding:8px}
   .modal.ticket-modal.stable-ticket-modal{
     width:min(600px, calc(100vw - 16px));
     max-width:calc(100vw - 16px);
