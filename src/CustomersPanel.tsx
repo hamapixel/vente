@@ -111,7 +111,7 @@ export default function CustomersPanel({customers,onAdd,onEdit,onPay,onReceipt,o
           </tbody></table></div>}
           <div className="section-heading customer-subheading"><div><h2>Historique des paiements</h2><p>Chaque règlement est conservé dans SQLite</p></div></div>
           {paymentError&&<p className="negative"><CircleAlert size={14}/> {paymentError}</p>}
-          {!payments.length?<p className="muted-cell">Aucun règlement enregistré pour le moment.</p>:<div className="table-wrap"><table><thead><tr><th>Date</th><th>Vente</th><th>Moyen</th><th>Montant</th></tr></thead><tbody>{payments.map(p=><tr key={p.id}><td>{p.createdAt.slice(0,16).replace("T"," ")}</td><td>{p.reference}</td><td>{p.method}</td><td className="positive">{money(p.amount)}</td></tr>)}</tbody></table></div>}
+          {!payments.length?<p className="muted-cell">Aucun règlement enregistré pour le moment.</p>:<div className="table-wrap"><table><thead><tr><th>Date</th><th>Vente</th><th>Moyen</th><th>Montant</th></tr></thead><tbody>{payments.map(p=><tr key={p.kind+"-"+p.id}><td>{p.createdAt.slice(0,16).replace("T"," ")}</td><td>{p.reference}</td><td>{p.method} · {p.kind==="remboursement"?"Remboursement":"Encaissement"}</td><td className={p.amount<0?"negative":"positive"}>{money(p.amount)}</td></tr>)}</tbody></table></div>}
         </>}
       </section>
     </div>
