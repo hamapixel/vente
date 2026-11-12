@@ -11,6 +11,7 @@ import { matchesProduct, matchesVariant } from "./search";
 import LoginScreen from "./LoginScreen";
 import CustomersPanel, { CustomerEditor, PaymentDialog, type PaymentTarget } from "./CustomersPanel";
 import CustomerSearchPicker from "./CustomerSearchPicker";
+import VariantSearchPicker from "./VariantSearchPicker";
 import ProductDetailModal from "./ProductDetailModal";
 import ReceiptView from "./ReceiptView";
 import SaleEditor from "./SaleEditor";
@@ -533,7 +534,7 @@ export default function App() {
       </div>
     </main>
 
-    {selected && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedId(null);}}><div className="modal"><div className="modal-header"><div><span className="eyebrow">CHOISIR UNE VARIANTE</span><h2>{selected.name}</h2><p>{selected.category} · Choisissez la taille et la couleur</p></div><button className="icon-button" onClick={()=>setSelectedId(null)} aria-label="Fermer"><X size={20}/></button></div><div className="variant-list">{selected.variants.map(v=><button key={v.id} disabled={v.quantity===0} onClick={()=>addToCart(v)} className="variant-choice"><span className="variant-square">{v.size}</span><span><strong>{v.color}</strong><small>{v.quantity ? v.quantity+" disponible(s)" : "En rupture"}</small></span><strong>{money(v.salePrice)}</strong><Plus size={17}/></button>)}</div></div></div>}
+    {selected && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedId(null);}}><div className="modal"><div className="modal-header"><div><span className="eyebrow">CHOISIR UNE VARIANTE</span><h2>{selected.name}</h2><p>{selected.category} · Choisissez la taille et la couleur</p></div><button className="icon-button" onClick={()=>setSelectedId(null)} aria-label="Fermer"><X size={20}/></button></div>{selected.variants.length>30 ? <div className="variant-modal-search"><p>Plus de 30 variantes : recherchez directement une taille, une couleur ou une référence.</p><VariantSearchPicker catalog={selected.variants} onSelect={addToCart}/></div> : <div className="variant-list">{selected.variants.map(v=><button key={v.id} disabled={v.quantity===0} onClick={()=>addToCart(v)} className="variant-choice"><span className="variant-square">{v.size}</span><span><strong>{v.color}</strong><small>{v.quantity ? v.quantity+" disponible(s)" : "En rupture"}</small></span><strong>{money(v.salePrice)}</strong><Plus size={17}/></button>)}</div>}</div></div>}
 
     {addModal && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAddModal(false);}}>
       <form className="modal product-modal stable-product-modal" onSubmit={doAddProduct}>
