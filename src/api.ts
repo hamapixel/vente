@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AuthStatus, CartLine, Customer, CustomerInput, CustomerSale, Dashboard, LoginBrand, NewProduct, PaymentEntry, ProductEdit, ProductMovement, Receipt, ReceiptDocument, ReportDay, Sale, Settlement, Shop, UserSession, Variant } from "./types";
+import type { AuthStatus, CartLine, Customer, CustomerInput, CustomerSale, Dashboard, LoginBrand, NewProduct, PaymentEntry, ProductEdit, ProductMovement, Receipt, ReceiptDocument, ReportDay, Sale, Settlement, Shop, UserSession, Variant, SaleDetail, SaleChange, SaleCancellation, DaySummary, RestoreResult } from "./types";
 
 // Dans un onglet navigateur ordinaire, l'API Tauri/SQLite n'est pas disponible.
 function desktopInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window)) {
     return Promise.reject(new Error(
-      "Aperçu navigateur : ouvrez la fenêtre ModeStock démarrée avec npm run tauri dev pour enregistrer des données."
+      "Aperçu navigateur : ouvrez la fenêtre VestiFlow démarrée avec npm run tauri dev pour enregistrer des données."
     ));
   }
   return invoke<T>(command, args);
@@ -24,7 +24,11 @@ export const api = {
     desktopInvoke<void>("adjust_stock", { variantId, delta, reason }),
   checkout: (requestId: string, items: CartLine[], discount: number, paymentMethod: string, customerId: number | null, paymentReceived: number) =>
     desktopInvoke<Receipt>("checkout", { input: { requestId, items, discount, paymentMethod, customerId, paymentReceived } }),
-  getDashboard: () => desktopInvoke<Dashboard>("get_dashboard"),
+  getDashboard: (day?: string) => desktopInvoke<Dashboard>("get_dashboard", day ? { day } : {}),
+  daySummary: (day: string) => desktopInvoke<DaySummary>("day_summary",{day}),
+  getSaleDetail: (saleId: number) => desktopInvoke<SaleDetail>("get_sale_detail",{saleId}),
+  changeSale: (input: SaleChange) => desktopInvoke<SaleDetail>("change_sale",{input}),
+  cancelSale: (input: SaleCancellation) => desktopInvoke<void>("cancel_sale",{input}),
   listCustomers: () => desktopInvoke<Customer[]>("list_customers"),
   listCustomerSales: (customerId: number) => desktopInvoke<CustomerSale[]>("list_customer_sales", { customerId }),
   createCustomer: (input: CustomerInput) => desktopInvoke<number>("create_customer", { input }),
@@ -40,4 +44,6 @@ export const api = {
   getShop: () => desktopInvoke<Shop>("get_shop"),
   updateShop: (shop: Shop) => desktopInvoke<void>("update_shop", { shop }),
   backupNow: () => desktopInvoke<string>("backup_now"),
+  exportBackup: (destination: string) => desktopInvoke<string>("export_backup",{destination}),
+  restoreBackup: (source: string, confirmation: string) => desktopInvoke<RestoreResult>("restore_backup",{source,confirmation}),
 };
