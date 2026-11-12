@@ -3,7 +3,7 @@ import {
   Activity, ArrowLeft, ArrowRight, BadgeCheck, BarChart3,
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
   Download, FileText, Footprints, LayoutDashboard, LogOut, Minus, MoreHorizontal, Package, Printer,
-  PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart, UsersRound,
+  PackageCheck, Pencil, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart, UsersRound,
   TrendingUp, Trash2, Wallet, X
 } from "lucide-react";
 import { api } from "./api";
@@ -13,6 +13,8 @@ import CustomersPanel, { CustomerEditor, PaymentDialog, type PaymentTarget } fro
 import CustomerSearchPicker from "./CustomerSearchPicker";
 import ProductDetailModal from "./ProductDetailModal";
 import ReceiptView from "./ReceiptView";
+import SaleEditor from "./SaleEditor";
+import BackupPanel from "./BackupPanel";
 import type { CartLine, Customer, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
 
 type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "customers" | "reports" | "settings";
@@ -25,7 +27,7 @@ const localDate = (d = new Date()) =>
   [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
 const number = (n: string) => Math.max(0, Math.floor(Number(n) || 0));
 const showError = (e: unknown) => typeof e === "string" ? e : e instanceof Error ? e.message : "Une erreur est survenue.";
-const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0, collectedToday: 0, outstanding: 0 };
+const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0, collectedToday: 0, outstanding: 0, creditCreated:0, refunds:0, cashMarginEstimate:0 };
 const blankShop: Shop = { name: "Ma boutique", phone: "", address: "", logoData: "", receiptHeader: "", receiptFooter: "Merci pour votre achat !", receiptFormat: "ticket" };
 const sampleReceipt: ReceiptDocument = {
   reference: "VT-EXEMPLE", createdAt: "2026-11-09T12:00:00", paymentMethod: "Espèces",
@@ -65,6 +67,9 @@ export default function App() {
   const [catalog, setCatalog] = useState<Variant[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard>(blankDashboard);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [editingSale, setEditingSale] = useState<Sale|null>(null);
+  const [dashboardDay,setDashboardDay] = useState(localDate());
+  const [salesDay,setSalesDay] = useState(localDate());
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerEditorOpen, setCustomerEditorOpen] = useState(false);
@@ -102,10 +107,10 @@ export default function App() {
   const notify = (text: string, kind: "success" | "error" = "success") => setNotice({ text, kind });
   const reload = useCallback(async () => {
     const [items, stats, history, profile, clients] = await Promise.all([
-      api.getCatalog(), api.getDashboard(), api.getSales(), api.getShop(), api.listCustomers()
+      api.getCatalog(), api.getDashboard(dashboardDay), api.getSales(), api.getShop(), api.listCustomers()
     ]);
     setCatalog(items); setDashboard(stats); setSales(history); setShop(profile); setCustomers(clients); setLoaded(true);
-  }, []);
+  }, [dashboardDay]);
   const loadReport = useCallback(async () => setReport(await api.getReport(from, to)), [from, to]);
   useEffect(() => {
     if (isBrowserPreview) { setAuthReady(true); return; }
@@ -186,12 +191,14 @@ export default function App() {
   const total = Math.max(0, subtotal - discount);
   const itemsInStock = catalog.reduce((sum, v) => sum + v.quantity, 0);
   const cards = [
-    { title: "Chiffre d'affaires du jour", value: money(dashboard.salesTotal), hint: dashboard.salesCount + " vente(s) enregistrée(s)", icon: Wallet, variant: "blue" },
-    { title: "Bénéfice brut du jour", value: money(dashboard.grossProfit), hint: "Ventes moins coût des articles", icon: TrendingUp, variant: "green" },
-    { title: "Résultat net estimé", value: money(dashboard.grossProfit - dashboard.expenses), hint: "Après dépenses enregistrées", icon: Activity, variant: "purple" },
+    { title: "Ventes facturées", value: money(dashboard.salesTotal), hint: dashboard.salesCount + " vente(s) validée(s) sur ce jour", icon: Wallet, variant: "blue" },
+    { title: "Encaissements réels", value: money(dashboard.collectedToday), hint: "Paiements reçus ce jour moins remboursements", icon: CreditCard, variant: "green" },
+    { title: "Crédits créés ce jour", value: money(dashboard.creditCreated), hint: "Reste dû au moment de la vente", icon: UsersRound, variant: "orange" },
+    { title: "Bénéfice brut sur ventes", value: money(dashboard.grossProfit), hint: "Sur les articles vendus, y compris à crédit", icon: TrendingUp, variant: "green" },
+    { title: "Marge sur encaissements (est.)", value: money(dashboard.cashMarginEstimate), hint: "Estimation proportionnelle aux paiements du jour", icon: Activity, variant: "purple" },
+    { title: "Résultat commercial estimé", value: money(dashboard.grossProfit - dashboard.expenses), hint: "Marge des ventes moins dépenses de la journée", icon: Wallet, variant: "blue" },
+    { title: "Créances clients actuelles", value: money(dashboard.outstanding), hint: "Solde restant sur toutes les ventes actives", icon: UsersRound, variant: "orange" },
     { title: "Variantes en stock faible", value: String(dashboard.lowStock), hint: "Quantité inférieure ou égale à 3", icon: CircleAlert, variant: "orange" },
-    { title: "Encaissements du jour", value: money(dashboard.collectedToday), hint: "Acomptes et règlements compris", icon: CreditCard, variant: "green" },
-    { title: "Créances clients", value: money(dashboard.outstanding), hint: "Ventes restant à régler", icon: UsersRound, variant: "orange" },
   ];
 
   function addToCart(v: Variant) {
@@ -331,12 +338,14 @@ export default function App() {
   }
   const recentTable = (rows: Sale[]) => <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Date</th><th>Client</th><th>Total</th><th>Versé</th><th>Reste à payer</th><th>Actions</th></tr></thead><tbody>
     {rows.map(s => <tr key={s.id}>
-      <td className="strong-cell">{s.reference}</td><td>{s.createdAt.slice(0,16).replace("T"," ")}</td>
+      <td className="strong-cell">{s.reference}{s.cancelled&&<small className="negative">ANNULÉE</small>}</td><td>{s.createdAt.slice(0,16).replace("T"," ")}</td>
       <td>{s.customerName || "Comptant"}</td><td className="strong-cell">{money(s.total)}</td>
-      <td className="positive">{money(s.paid)}</td><td className={s.remaining > 0 ? "negative" : "positive"}>{s.remaining > 0 ? money(s.remaining) : "Soldé"}</td>
+      <td className={s.cancelled?"muted-cell":"positive"}>{s.cancelled?"Remboursé / annulé":money(s.paid)}</td>
+      <td className={s.cancelled?"muted-cell":s.remaining>0?"negative":"positive"}>{s.cancelled?"Annulée":s.remaining>0?money(s.remaining):"Soldé"}</td>
       <td><div className="inline-actions">
-        {s.remaining > 0 && <button className="table-action" onClick={()=>setPaymentSale(s)}><CreditCard size={15}/> Régler</button>}
-        <button className="table-action" onClick={()=>void openTicket(s.id)}><Printer size={15}/> Ticket</button>
+        {!s.cancelled&&s.remaining>0&&<button className="table-action" onClick={()=>setPaymentSale(s)}><CreditCard size={15}/> Régler</button>}
+        {!s.cancelled&&<button className="table-action" onClick={()=>void openTicket(s.id)}><Printer size={15}/> Ticket</button>}
+        {!s.cancelled&&session?.role==="admin"&&<button className="table-action" onClick={()=>setEditingSale(s)}><Pencil size={15}/> Corriger / annuler</button>}
       </div></td>
     </tr>)}
   </tbody></table></div>;
@@ -477,7 +486,7 @@ export default function App() {
             </div>
           </div>
         </>}
-        <footer className="footer"><span>VestiFlow <b>v0.2.4</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
+        <footer className="footer"><span>VestiFlow <b>v0.3.0</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
       </div>
     </main>
 
