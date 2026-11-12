@@ -467,4 +467,51 @@ mod tests {
         let b=summary_for_day(&c,&crate::today()).unwrap();
         assert_eq!(b.collected,5000);
     }
+
+    #[test]
+    fn refund_then_sale_increase_uses_net_paid_for_future_settlements_and_checkout_retries(){
+        let (mut c,cid,v1,_)=seed();
+        let id=sale(&mut c,Some(cid),v1,10000,"original-refund-test");
+        let mut reduction=change(id,Some(cid),v1,1,"refund-reduction");
+        reduction.discount=4000;
+        reduction.refund_amount=4000;
+        let reduced=change_sale_core(&mut c,reduction,"Admin").unwrap();
+        assert_eq!((reduced.total,reduced.paid,reduced.remaining),(6000,6000,0));
+
+        let increased=change_sale_core(
+            &mut c,change(id,Some(cid),v1,2,"increase-after-refund"),"Admin"
+        ).unwrap();
+        assert_eq!((increased.total,increased.paid,increased.remaining),(20000,6000,14000));
+
+        let payment=crate::commerce::settle(
+            &mut c,id,3000,"Espèces","net-settlement-after-refund"
+        ).unwrap();
+        assert_eq!((payment.paid,payment.remaining),(9000,11000));
+
+        // Relancer l'opération avec la même clé ne perçoit pas 3 000 FCFA une seconde fois.
+        let retry=crate::commerce::settle(
+            &mut c,id,3000,"Espèces","net-settlement-after-refund"
+        ).unwrap();
+        assert_eq!((retry.paid,retry.remaining),(9000,11000));
+
+        // Une nouvelle tentative de caisse avec la clé historique lit elle aussi le net.
+        let repeat_checkout=checkout_core(&mut c,CheckoutInput{
+            request_id:"original-refund-test".into(),
+            items:vec![CartItem{variant_id:v1,quantity:1}],
+            discount:0,payment_method:"Espèces".into(),
+            customer_id:Some(cid),payment_received:Some(10000),
+        }).unwrap();
+        assert_eq!((repeat_checkout.paid,repeat_checkout.remaining),(9000,11000));
+
+        let payment_count:i64=c.query_row(
+            "SELECT COUNT(*) FROM sale_payments WHERE sale_id=?1",
+            params![id],|r|r.get(0)
+        ).unwrap();
+        let refund_count:i64=c.query_row(
+            "SELECT COUNT(*) FROM sale_refunds WHERE sale_id=?1",
+            params![id],|r|r.get(0)
+        ).unwrap();
+        assert_eq!((payment_count,refund_count),(2,1));
+    }
+
 }
