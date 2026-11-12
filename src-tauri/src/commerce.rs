@@ -161,7 +161,7 @@ pub fn list_customer_sales(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i64)
 #[derive(Serialize)]
 #[serde(rename_all="camelCase")]
 pub struct PaymentEntry {
-    id:i64, sale_id:i64, reference:String, amount:i64, method:String, created_at:String
+    id:i64, sale_id:i64, reference:String, amount:i64, method:String, created_at:String, kind:String
 }
 
 #[tauri::command]
@@ -170,15 +170,22 @@ pub fn list_customer_payments(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i6
     require_auth(&auth)?;
     let conn=db.0.lock().map_err(error)?;
     let mut stmt=conn.prepare(r#"
-        SELECT p.id,p.sale_id,s.reference,p.amount,p.method,p.created_at
+        SELECT p.id,p.sale_id,s.reference,p.amount,p.method,p.created_at,'encaissement'
         FROM sale_payments p
         JOIN sales s ON s.id=p.sale_id
         JOIN sale_customers sc ON sc.sale_id=s.id
-        WHERE sc.customer_id=?1 ORDER BY p.id DESC
+        WHERE sc.customer_id=?1
+        UNION ALL
+        SELECT r.id,r.sale_id,s.reference,-r.amount,r.method,r.created_at,'remboursement'
+        FROM sale_refunds r
+        JOIN sales s ON s.id=r.sale_id
+        JOIN sale_customers sc ON sc.sale_id=s.id
+        WHERE sc.customer_id=?1
+        ORDER BY 6 DESC,1 DESC
     "#).map_err(error)?;
     let rows=stmt.query_map(params![customer_id],|r|Ok(PaymentEntry{
         id:r.get(0)?,sale_id:r.get(1)?,reference:r.get(2)?,
-        amount:r.get(3)?,method:r.get(4)?,created_at:r.get(5)?
+        amount:r.get(3)?,method:r.get(4)?,created_at:r.get(5)?,kind:r.get(6)?
     })).map_err(error)?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
 }
