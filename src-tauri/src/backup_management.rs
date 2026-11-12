@@ -131,10 +131,18 @@ pub fn restore_backup(
 mod tests{
     use super::*;
     use crate::init_db;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    // Les tests Rust s'exécutent en parallèle. Sous Windows, deux appels
+    // à l'horloge peuvent retourner le même instant : ne jamais partager
+    // accidentellement le même fichier SQLite entre deux tests.
+    static NEXT_SANDBOX: AtomicU64 = AtomicU64::new(0);
     fn sandbox()->PathBuf{
-        let path=std::env::temp_dir().join(format!("vestiflow-restore-{}-{}",std::process::id(),
-            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)));
-        fs::create_dir_all(&path).unwrap();
+        let path=std::env::temp_dir().join(format!("vestiflow-restore-{}-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
+            NEXT_SANDBOX.fetch_add(1, Ordering::Relaxed)));
+        fs::create_dir(&path).unwrap();
         path
     }
     #[test]
