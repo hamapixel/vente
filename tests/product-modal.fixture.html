@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="../src/styles.css">
+  <title>VestiFlow — création de produit, géométrie réelle Windows</title>
+</head>
+<body>
+  <div class="modal-overlay product-overlay">
+    <form class="modal product-modal stable-product-modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <div>
+          <span class="eyebrow">NOUVEL ARTICLE</span>
+          <h2>Ajouter un produit</h2>
+          <p>Créez un vêtement, une chaussure, une ceinture ou tout autre article avec son stock.</p>
+        </div>
+        <button class="icon-button" type="button">×</button>
+      </div>
+      <div class="product-form-scroll" role="region" aria-label="Champs et variantes du produit" tabindex="0">
+        <div class="form-grid two-cols">
+          <label>Nom du produit <input required placeholder="Ex. Ceinture en cuir"></label>
+          <label>Catégorie <input required value="Divers"></label>
+          <label>Prix d'achat (FCFA)<input required type="number" value="5000"></label>
+          <label>Prix de vente (FCFA)<input required type="number" value="8000"></label>
+        </div>
+        <div class="variants-editor">
+          <div class="variants-heading">
+            <div><strong>Tailles, couleurs et quantités</strong><p>Une variante = un stock distinct.</p></div>
+            <span class="variants-count">16 variantes</span>
+          </div>
+          <div class="variant-grid-head"><span>Taille</span><span>Couleur</span><span>Quantité</span><span></span></div>
+          <div id="variants" class="variant-editor-list"></div>
+          <button class="add-variant-btn" type="button">Ajouter une taille / couleur</button>
+          <p class="variant-hint">Taille vide = Unique · couleur vide = Standard.</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="secondary-btn" type="button">Annuler</button>
+        <button class="primary-btn" type="submit">Enregistrer le produit</button>
+      </div>
+    </form>
+  </div>
+  <output id="geometry" data-result="pending"></output>
+  <script>
+    const container=document.getElementById("variants");
+    for(let i=0;i<16;i++){
+      const row=document.createElement("div");
+      row.className="variant-editor-row";
+      row.innerHTML='<input aria-label="Taille" value="Unique"><input aria-label="Couleur" value="Noir"><input aria-label="Quantité" type="number" value="10"><button type="button" class="remove-variant">×</button>';
+      container.append(row);
+    }
+    function measure(){
+      const modal=document.querySelector(".stable-product-modal");
+      const header=modal.querySelector(".modal-header");
+      const fields=modal.querySelector(".product-form-scroll");
+      const footer=modal.querySelector(".modal-actions");
+      const m=modal.getBoundingClientRect();
+      const h=header.getBoundingClientRect();
+      const f=fields.getBoundingClientRect();
+      const a=footer.getBoundingClientRect();
+      const previous=fields.scrollTop;
+      fields.scrollTop=fields.scrollHeight;
+      const scrolled=fields.scrollTop>previous;
+      const result={
+        viewport:[innerWidth,innerHeight],
+        modalHeight:Math.round(m.height),
+        fieldsHeight:Math.round(f.height),
+        contentHeight:fields.scrollHeight,
+        scrollable:fields.scrollHeight>fields.clientHeight+20,
+        actualWheelScrollTarget:scrolled,
+        headerVisible:h.top>=m.top && h.bottom<=f.top+3,
+        footerVisible:a.top>=f.bottom-3 && a.bottom<=m.bottom+2,
+        modalVisible:m.top>=-2 && m.bottom<=innerHeight+2 && m.left>=-2 && m.right<=innerWidth+2,
+        noHorizontalOverflow:fields.scrollWidth<=fields.clientWidth+3
+      };
+      const valid=result.fieldsHeight>=Math.min(100,innerHeight*.23)
+        && result.scrollable && result.actualWheelScrollTarget
+        && result.headerVisible && result.footerVisible && result.modalVisible
+        && result.noHorizontalOverflow;
+      const output=document.getElementById("geometry");
+      output.dataset.result=valid?"pass":"fail";
+      output.textContent=JSON.stringify(result);
+    }
+    window.addEventListener("load",()=>setTimeout(measure,60));
+  </script>
+</body>
+</html>
