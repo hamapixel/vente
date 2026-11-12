@@ -1087,3 +1087,88 @@ html,body,#root{
   .sale-edit-line>input{flex-basis:54px;width:54px;padding-inline:5px}
   .dashboard-date-control,.sale-date-control{padding:10px}
 }
+
+
+/* VestiFlow 0.3 — recherche réelle pour des milliers de variantes, sans select géant. */
+.sale-search-full{grid-column:1/-1;min-width:0}
+.sale-search-client{min-width:0;display:grid;gap:6px}
+.sale-search-label{display:block;font-size:11px;font-weight:750;color:#536d8b;margin-bottom:7px}
+.variant-search-picker{width:100%;min-width:0;position:relative}
+.variant-search-field{height:46px;display:flex;align-items:center;gap:10px;padding:0 12px;border:1px solid #d6e4f4;border-radius:10px;background:white;color:#4e80b7}
+.variant-search-field:focus-within{border-color:#4d92d8;box-shadow:0 0 0 3px #4d92d81c}
+.variant-search-field input{flex:1 1 auto;width:100%;height:100%;border:0;min-width:0;outline:0;background:transparent;color:#243c58;font-size:13px}
+.variant-search-field button{flex-shrink:0;display:grid;place-items:center;border:0;background:#eef3fa;color:#6e86a4;border-radius:7px;width:27px;height:27px}
+.variant-search-menu{background:#fff;border:1px solid #dfe9f5;border-radius:10px;box-shadow:0 6px 22px #12345610;margin-top:7px;max-height:min(250px,36dvh);min-width:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.variant-search-counter{font-size:10px;color:#68809c;margin:0;padding:9px 11px;border-bottom:1px solid #edf1f6}
+.variant-search-option{display:flex;align-items:center;gap:10px;text-align:left;width:100%;border:0;background:#fff;padding:10px;min-width:0;border-bottom:1px solid #f0f3f7}
+.variant-search-option:hover,.variant-search-option.active{background:#edf5ff}
+.variant-search-option:disabled{opacity:.6}
+.variant-search-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#eaf2ff;color:#3373ba;flex-shrink:0}
+.variant-search-details{display:grid;gap:3px;min-width:0;flex:1}
+.variant-search-details strong{font-size:12px;line-height:1.4;color:#294362;overflow-wrap:anywhere}
+.variant-search-details small{font-size:10px;color:#758ca8;line-height:1.4;overflow-wrap:anywhere}
+.variant-search-price{white-space:nowrap;font-size:11px;color:#255995}
+.variant-search-empty{margin:0;padding:16px;font-size:11px;color:#667e9d}
+.variant-search-close{background:#f0f5fb;border:0;color:#366b9d;font-size:11px;font-weight:700;width:100%;height:36px}
+.sale-edit-modal .customer-search-picker{width:100%}
+.sale-edit-modal .customer-search-results{position:relative;inset:auto;box-shadow:0 5px 19px #18375410;max-height:min(225px,31dvh)}
+.catalog-more{display:block;width:min(100%,480px);margin:14px auto;border:1px solid #b8d2ef;background:#eff6ff;border-radius:10px;padding:12px;color:#2665a8;font-weight:750;font-size:12px}
+.catalog-more:hover{background:#e2effe}
+.stable-product-modal input[list]{width:100%}
+
+@media screen and (max-width:680px){
+  .sale-search-full,.sale-search-client{grid-column:1/-1}
+  .sale-edit-modal .customer-search-input{height:45px}
+  .sale-edit-modal .customer-search-input input,.variant-search-field input{font-size:16px}
+  .sale-edit-modal .sale-edit-line{flex-wrap:wrap}
+  .sale-edit-modal .sale-edit-line>div{flex-basis:calc(100% - 110px)}
+  .sale-edit-modal .modal-actions button{flex:1 1 auto;min-height:44px}
+  .variant-search-menu{max-height:220px}
+  .variant-search-price{font-size:10px}
+}
+@media screen and (max-width:400px){
+  .sale-editor-numbers{grid-template-columns:1fr 1fr}
+  .sale-editor-numbers strong{font-size:12px}
+  .variant-search-icon{display:none}
+  .sale-edit-modal .modal-header h2{font-size:18px}
+}
+/* Le mode téléphone prépare l'interface pour un futur client mobile.
+   Il ne rend PAS le moteur SQLite Windows accessible sur Internet. */
+@media screen and (max-width:480px){
+  .shell>.main{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
+  .shell>.sidebar{
+    position:fixed;top:auto;left:0;right:0;bottom:0;
+    width:100%;height:calc(58px + env(safe-area-inset-bottom));min-height:0;
+    padding:4px 6px env(safe-area-inset-bottom);
+    flex-direction:row;align-items:center;gap:3px;
+    border-top:1px solid #344967;z-index:35;overflow:hidden
+  }
+  .shell>.sidebar .brand,.shell>.sidebar .sidebar-label{display:none}
+  .shell>.sidebar .nav-list{
+    flex:1 1 auto;display:flex;flex-direction:row;align-items:center;
+    gap:3px;min-width:0;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:none;overscroll-behavior-x:contain
+  }
+  .shell>.sidebar .nav-list::-webkit-scrollbar{display:none}
+  .shell>.sidebar .nav-link{width:46px;height:46px;min-width:46px;padding:0;margin:0;display:flex;justify-content:center;flex-shrink:0}
+  .shell>.sidebar .nav-link svg{width:20px;height:20px}
+  .shell>.sidebar .sidebar-bottom{width:45px;min-width:45px;display:flex;margin:0;padding:0;flex:0 0 45px;justify-content:center}
+  .shell>.sidebar .sidebar-bottom .offline-indicator,.shell>.sidebar .sidebar-bottom .sidebar-footer{display:none}
+  .shell>.sidebar .logout-sidebar{width:43px;height:45px;margin:0;padding:0;justify-content:center;font-size:0}
+  .shell>.main>.topbar{min-height:56px}
+  .shell>.main>.content{padding:12px 10px}
+  .shell>.main>.content.content-pos{padding:9px 8px 10px}
+  .content-pos>.pos-layout{grid-template-rows:minmax(0,1fr) minmax(0,1.1fr)}
+  .content-pos>.page-heading h1{font-size:19px}
+  .content-pos .product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .content-pos .cart-header{padding:10px 12px}
+  .content-pos .cart-header h2{font-size:15px}
+  .customer-search-option-body small{white-space:normal}
+  .modal-overlay{padding:5px}
+  .sale-edit-modal{width:calc(100vw - 10px);max-width:calc(100vw - 10px);height:calc(100dvh - 10px);max-height:calc(100dvh - 10px);padding:12px}
+  .sale-edit-modal .modal-header{margin-bottom:7px}
+  .sale-edit-modal .modal-header p{font-size:10px}
+  .sale-editor-switch{margin-bottom:7px}
+  .variant-search-field{height:47px}
+  .variant-search-option{min-height:53px}
+}
