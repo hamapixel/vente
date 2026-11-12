@@ -58,12 +58,14 @@ export default function SaleEditor({
     &&(refundNeeded===0||refundConfirmed);
   function changeQty(id:number,qty:number){
     setRequestId(crypto.randomUUID());
+    setRefundConfirmed(false);
     if(qty<1){setLines(x=>x.filter(l=>l.variantId!==id));return;}
     setLines(x=>x.map(l=>l.variantId===id?{...l,quantity:qty}:l));
   }
   function addLine(id:number){
     if(!id)return;
     setRequestId(crypto.randomUUID());
+    setRefundConfirmed(false);
     setLines(x=>x.some(l=>l.variantId===id)
       ?x.map(l=>l.variantId===id?{...l,quantity:l.quantity+1}:l)
       :[...x,{variantId:id,quantity:1}]);
@@ -104,8 +106,8 @@ export default function SaleEditor({
         <button type="button" className="icon-button" onClick={onClose} aria-label="Fermer"><X size={18}/></button>
       </div>
       <div className="sale-editor-switch" role="group" aria-label="Type d'opération">
-        <button type="button" className={mode==="edit"?"active":""} onClick={()=>{setMode("edit");setRequestId(crypto.randomUUID());}}><ArrowLeftRight size={15}/> Corriger les articles</button>
-        <button type="button" className={mode==="cancel"?"active danger":""} onClick={()=>{setMode("cancel");setRequestId(crypto.randomUUID());}}><Trash2 size={15}/> Annuler la vente</button>
+        <button type="button" className={mode==="edit"?"active":""} onClick={()=>{setMode("edit");setRefundConfirmed(false);setCancelConfirm("");setRequestId(crypto.randomUUID());}}><ArrowLeftRight size={15}/> Corriger les articles</button>
+        <button type="button" className={mode==="cancel"?"active danger":""} onClick={()=>{setMode("cancel");setRefundConfirmed(false);setCancelConfirm("");setRequestId(crypto.randomUUID());}}><Trash2 size={15}/> Annuler la vente</button>
       </div>
       <div className="sale-edit-scroll">
         {error&&<div role="alert" className="auth-error"><CircleAlert size={16}/> {error}</div>}
@@ -143,7 +145,7 @@ export default function SaleEditor({
               </select>
             </label>
             <label>Remise totale (FCFA)
-              <input type="number" min="0" max={total+discount} value={discount} onChange={e=>{setDiscount(Math.max(0,Number(e.target.value)||0));setRequestId(crypto.randomUUID());}}/>
+              <input type="number" min="0" max={total+discount} value={discount} onChange={e=>{setDiscount(Math.max(0,Number(e.target.value)||0));setRefundConfirmed(false);setRequestId(crypto.randomUUID());}}/>
             </label>
             <label>Client de la vente
               <select value={customerId??""} onChange={e=>{setCustomerId(e.target.value?Number(e.target.value):null);setRequestId(crypto.randomUUID());}}>
