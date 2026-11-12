@@ -325,7 +325,7 @@ pub(crate) fn summary_for_day(conn:&Connection,day:&str)->Result<DailySummary,St
         "SELECT COALESCE(SUM(s.total),0),COALESCE(SUM(s.total-s.total_cost),0),COUNT(*),
                 COALESCE(SUM(MAX(0,s.total-COALESCE(
                    (SELECT SUM(p.amount) FROM sale_payments p
-                    WHERE p.sale_id=s.id AND p.request_id LIKE 'initial-%'),0))),0)
+                    WHERE p.sale_id=s.id AND (p.request_id LIKE 'initial-%' OR p.request_id LIKE 'legacy-sale-%')),0))),0)
          FROM sales s WHERE substr(s.created_at,1,10)=?1
            AND NOT EXISTS(SELECT 1 FROM sale_cancellations c WHERE c.sale_id=s.id)",
         params![day],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))
