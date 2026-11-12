@@ -486,13 +486,13 @@ mod tests {
         let payment=crate::commerce::settle(
             &mut c,id,3000,"Espèces","net-settlement-after-refund"
         ).unwrap();
-        assert_eq!((payment.paid,payment.remaining),(9000,11000));
+        assert_eq!((paid_net(&c,id).unwrap(),payment.remaining),(9000,11000));
 
         // Relancer l'opération avec la même clé ne perçoit pas 3 000 FCFA une seconde fois.
         let retry=crate::commerce::settle(
             &mut c,id,3000,"Espèces","net-settlement-after-refund"
         ).unwrap();
-        assert_eq!((retry.paid,retry.remaining),(9000,11000));
+        assert_eq!((paid_net(&c,id).unwrap(),retry.remaining),(9000,11000));
 
         // Une nouvelle tentative de caisse avec la clé historique lit elle aussi le net.
         let repeat_checkout=checkout_core(&mut c,CheckoutInput{
