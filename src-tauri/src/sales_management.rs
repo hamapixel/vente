@@ -341,13 +341,13 @@ pub(crate) fn summary_for_day(conn:&Connection,day:&str)->Result<DailySummary,St
         params![day],|r|r.get(0)).map_err(error)?;
     let margin_pays:i64=conn.query_row(
         "SELECT COALESCE(SUM(CASE WHEN s.total>0
-             THEN CAST(p.amount*(s.total-s.total_cost) AS REAL/s.total AS INTEGER)
+             THEN CAST((p.amount * 1.0 * (s.total-s.total_cost) / s.total) AS INTEGER)
              ELSE 0 END),0)
          FROM sale_payments p JOIN sales s ON s.id=p.sale_id
          WHERE substr(p.created_at,1,10)=?1",params![day],|r|r.get(0)).map_err(error)?;
     let margin_refunds:i64=conn.query_row(
         "SELECT COALESCE(SUM(CASE WHEN s.total>0
-             THEN CAST(r.amount*(s.total-s.total_cost) AS REAL/s.total AS INTEGER)
+             THEN CAST((r.amount * 1.0 * (s.total-s.total_cost) / s.total) AS INTEGER)
              ELSE 0 END),0)
          FROM sale_refunds r JOIN sales s ON s.id=r.sale_id
          WHERE substr(r.created_at,1,10)=?1",params![day],|r|r.get(0)).map_err(error)?;
@@ -418,9 +418,9 @@ mod tests {
     fn paid_sale_reduction_requires_exact_refund_and_never_erases_payments(){
         let (mut c,cid,v1,_)=seed();
         let id=sale(&mut c,Some(cid),v1,10000,"paid-red");
-        let mut double=change(id,Some(cid),v1,2,"up");
+        let double=change(id,Some(cid),v1,2,"up");
         change_sale_core(&mut c,double,"Admin").unwrap();
-        let mut down=change(id,Some(cid),v1,1,"down");
+        let down=change(id,Some(cid),v1,1,"down");
         // 10 000 déjà payés et 10 000 nouveau total : aucun remboursement.
         change_sale_core(&mut c,down,"Admin").unwrap();
         let paid=paid_net(&c,id).unwrap();assert_eq!(paid,10000);
