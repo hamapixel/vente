@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowLeftRight, Check, CircleAlert, RotateCcw, Trash2, X } from "lucide-react";
 import { api } from "./api";
+import CustomerSearchPicker from "./CustomerSearchPicker";
+import VariantSearchPicker from "./VariantSearchPicker";
 import type { Customer, Sale, SaleDetail, Variant } from "./types";
 
 const money=(n:number)=>new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(n)+" FCFA";
@@ -46,11 +48,6 @@ export default function SaleEditor({
   const extra=Number(additionalPaid);
   const newPaid=alreadyPaid-refundNeeded+(Number.isSafeInteger(extra)&&extra>0?extra:0);
   const remaining=Math.max(0,total-newPaid);
-  const [search,setSearch]=useState("");
-  const matching=catalog.filter(v=>
-    [v.name,v.size,v.color,v.sku].join(" ").toLocaleLowerCase("fr")
-    .includes(search.trim().toLocaleLowerCase("fr"))
-  ).slice(0,40);
   const valid=!!detail&&!detail.cancelled&&lines.length>0&&lines.every(l=>l.quantity>0)
     &&discount>=0&&total>=0&&Number.isSafeInteger(extra)&&extra>=0
     &&!(refundNeeded>0&&extra>0)&&newPaid<=total
@@ -69,7 +66,6 @@ export default function SaleEditor({
     setLines(x=>x.some(l=>l.variantId===id)
       ?x.map(l=>l.variantId===id?{...l,quantity:l.quantity+1}:l)
       :[...x,{variantId:id,quantity:1}]);
-    setSearch("");
   }
   async function submit(e:FormEvent){
     e.preventDefault();
@@ -133,26 +129,17 @@ export default function SaleEditor({
             })}
           </div>
           <div className="form-grid two-cols">
-            <label>Ajouter un article
-              <input placeholder="Rechercher nom, pointure, couleur…" value={search} onChange={e=>setSearch(e.target.value)}/>
-            </label>
-            <label>Choisir une variante
-              <select value="" onChange={e=>addLine(Number(e.target.value))}>
-                <option value="">Sélectionner un produit…</option>
-                {matching.map(v=><option value={v.id} key={v.id} disabled={v.quantity<1}>
-                  {v.name} · {v.size}/{v.color} · {money(v.salePrice)} ({v.quantity} en stock)
-                </option>)}
-              </select>
-            </label>
+            <div className="sale-search-full">
+              <span className="sale-search-label">Ajouter un article — recherche instantanée</span>
+              <VariantSearchPicker catalog={catalog} excludeIds={lines.map(l=>l.variantId)} onSelect={variant=>addLine(variant.id)}/>
+            </div>
             <label>Remise totale (FCFA)
               <input type="number" min="0" max={total+discount} value={discount} onChange={e=>{setDiscount(Math.max(0,Number(e.target.value)||0));setRefundConfirmed(false);setRequestId(crypto.randomUUID());}}/>
             </label>
-            <label>Client de la vente
-              <select value={customerId??""} onChange={e=>{setCustomerId(e.target.value?Number(e.target.value):null);setRequestId(crypto.randomUUID());}}>
-                <option value="">Client de passage (vente entièrement réglée)</option>
-                {customers.map(c=><option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
-              </select>
-            </label>
+            <div className="sale-search-client">
+              <span className="sale-search-label">Client de la vente — recherche par nom ou téléphone</span>
+              <CustomerSearchPicker customers={customers} value={customerId} onChange={id=>{setCustomerId(id);setRequestId(crypto.randomUUID());}}/>
+            </div>
             {refundNeeded===0&&<label>Encaissement complémentaire maintenant (FCFA)
               <input type="number" min="0" max={Math.max(0,total-alreadyPaid)} value={additionalPaid} onChange={e=>{setAdditionalPaid(e.target.value);setRequestId(crypto.randomUUID());}}/>
             </label>}
