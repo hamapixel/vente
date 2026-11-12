@@ -397,10 +397,8 @@ fn checkout_core(conn: &mut Connection, input: CheckoutInput) -> Result<Receipt,
         ))
     ).optional().map_err(error)?;
     if let Some((id,reference,total,total_cost,created_at)) = existing {
-        let paid:i64=tx.query_row(
-            "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE sale_id=?1",
-            params![id],|r|r.get(0)
-        ).map_err(error)?;
+        // Une reprise idempotente retourne l'état réel de la vente, remboursements inclus.
+        let paid=sales_management::paid_net(&tx,id)?;
         return Ok(Receipt{id,reference,total,total_cost,created_at,paid,remaining:total-paid});
     }
 
