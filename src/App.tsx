@@ -3,7 +3,7 @@ import {
   Activity, ArrowLeft, ArrowRight, BadgeCheck, BarChart3,
   CalendarDays, Check, ChevronDown, CircleAlert, CreditCard, DatabaseBackup,
   Download, FileText, Footprints, LayoutDashboard, LogOut, Minus, MoreHorizontal, Package, Printer,
-  PackageCheck, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart, UsersRound,
+  PackageCheck, Pencil, Plus, Search, Settings2, Shirt, ShoppingBag, ShoppingCart, UsersRound,
   TrendingUp, Trash2, Wallet, X
 } from "lucide-react";
 import { api } from "./api";
@@ -11,8 +11,11 @@ import { matchesProduct, matchesVariant } from "./search";
 import LoginScreen from "./LoginScreen";
 import CustomersPanel, { CustomerEditor, PaymentDialog, type PaymentTarget } from "./CustomersPanel";
 import CustomerSearchPicker from "./CustomerSearchPicker";
+import VariantSearchPicker from "./VariantSearchPicker";
 import ProductDetailModal from "./ProductDetailModal";
 import ReceiptView from "./ReceiptView";
+import SaleEditor from "./SaleEditor";
+import BackupPanel from "./BackupPanel";
 import type { CartLine, Customer, Dashboard, LoginBrand, NewProduct, Receipt, ReceiptDocument, ReportDay, Sale, Shop, UserSession, Variant } from "./types";
 
 type Page = "dashboard" | "pos" | "products" | "stock" | "sales" | "customers" | "reports" | "settings";
@@ -25,7 +28,7 @@ const localDate = (d = new Date()) =>
   [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
 const number = (n: string) => Math.max(0, Math.floor(Number(n) || 0));
 const showError = (e: unknown) => typeof e === "string" ? e : e instanceof Error ? e.message : "Une erreur est survenue.";
-const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0, collectedToday: 0, outstanding: 0 };
+const blankDashboard: Dashboard = { salesTotal: 0, grossProfit: 0, expenses: 0, salesCount: 0, lowStock: 0, variantCount: 0, collectedToday: 0, outstanding: 0, creditCreated:0, refunds:0, cashMarginEstimate:0 };
 const blankShop: Shop = { name: "Ma boutique", phone: "", address: "", logoData: "", receiptHeader: "", receiptFooter: "Merci pour votre achat !", receiptFormat: "ticket" };
 const sampleReceipt: ReceiptDocument = {
   reference: "VT-EXEMPLE", createdAt: "2026-11-09T12:00:00", paymentMethod: "Espèces",
@@ -33,7 +36,7 @@ const sampleReceipt: ReceiptDocument = {
   lines: [{ name: "Maillot de football", variant: "L / Bleu", quantity: 1, unitPrice: 10000, lineTotal: 10000 }]
 };
 const isBrowserPreview = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
-const categories = ["Maillots", "T-shirts", "Chemises", "Polos", "Jeans", "Pantalons", "Robes", "Chaussures", "Accessoires", "Autres"];
+const categories = ["Divers", "Maillots", "T-shirts", "Chemises", "Polos", "Jeans", "Pantalons", "Robes", "Chaussures", "Baskets", "Sandales", "Ceintures", "Sacs", "Montres", "Bijoux", "Parfums", "Cosmétiques", "Électronique", "Maison", "Accessoires", "Autres"];
 const navigation = [
   { id: "dashboard" as const, label: "Vue d'ensemble", icon: LayoutDashboard },
   { id: "pos" as const, label: "Caisse & ventes", icon: ShoppingBag },
@@ -65,6 +68,9 @@ export default function App() {
   const [catalog, setCatalog] = useState<Variant[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard>(blankDashboard);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [editingSale, setEditingSale] = useState<Sale|null>(null);
+  const [dashboardDay,setDashboardDay] = useState(localDate());
+  const [salesDay,setSalesDay] = useState(localDate());
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerEditorOpen, setCustomerEditorOpen] = useState(false);
@@ -80,6 +86,7 @@ export default function App() {
   const checkoutRequestIdRef = useRef<string>(crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(80);
   const [category, setCategory] = useState("Tous");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -96,16 +103,16 @@ export default function App() {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 6); return localDate(d); });
   const [to, setTo] = useState(localDate());
   const [report, setReport] = useState<ReportDay[]>([]);
-  const [draft, setDraft] = useState<ProductDraft>({ name: "", category: "Maillots", purchasePrice: "", salePrice: "", variants: [] });
+  const [draft, setDraft] = useState<ProductDraft>({ name: "", category: "Divers", purchasePrice: "", salePrice: "", variants: [] });
   const [variantRows, setVariantRows] = useState<VariantRow[]>([{ id: 1, size: "", color: "", quantity: "" }]);
 
   const notify = (text: string, kind: "success" | "error" = "success") => setNotice({ text, kind });
   const reload = useCallback(async () => {
     const [items, stats, history, profile, clients] = await Promise.all([
-      api.getCatalog(), api.getDashboard(), api.getSales(), api.getShop(), api.listCustomers()
+      api.getCatalog(), api.getDashboard(dashboardDay), api.getSales(), api.getShop(), api.listCustomers()
     ]);
     setCatalog(items); setDashboard(stats); setSales(history); setShop(profile); setCustomers(clients); setLoaded(true);
-  }, []);
+  }, [dashboardDay]);
   const loadReport = useCallback(async () => setReport(await api.getReport(from, to)), [from, to]);
   useEffect(() => {
     if (isBrowserPreview) { setAuthReady(true); return; }
@@ -170,6 +177,7 @@ export default function App() {
     reader.readAsDataURL(file);
   }
 
+  useEffect(() => setVisibleLimit(80), [query, category, page]);
   const products = useMemo<ProductGroup[]>(() => {
     const map = new Map<number, ProductGroup>();
     for (const v of catalog) {
@@ -178,6 +186,7 @@ export default function App() {
     }
     return Array.from(map.values());
   }, [catalog]);
+  const availableCategories = useMemo(() => Array.from(new Set([...categories, ...catalog.map(v => v.category)])), [catalog]);
   const filtered = products.filter(p =>
     (category === "Tous" || p.category === category) && matchesProduct(p, query));
   const filteredVariants = catalog.filter(v => matchesVariant(v, query));
@@ -186,12 +195,14 @@ export default function App() {
   const total = Math.max(0, subtotal - discount);
   const itemsInStock = catalog.reduce((sum, v) => sum + v.quantity, 0);
   const cards = [
-    { title: "Chiffre d'affaires du jour", value: money(dashboard.salesTotal), hint: dashboard.salesCount + " vente(s) enregistrée(s)", icon: Wallet, variant: "blue" },
-    { title: "Bénéfice brut du jour", value: money(dashboard.grossProfit), hint: "Ventes moins coût des articles", icon: TrendingUp, variant: "green" },
-    { title: "Résultat net estimé", value: money(dashboard.grossProfit - dashboard.expenses), hint: "Après dépenses enregistrées", icon: Activity, variant: "purple" },
+    { title: "Ventes facturées", value: money(dashboard.salesTotal), hint: dashboard.salesCount + " vente(s) validée(s) sur ce jour", icon: Wallet, variant: "blue" },
+    { title: "Encaissements réels", value: money(dashboard.collectedToday), hint: "Paiements reçus ce jour moins remboursements", icon: CreditCard, variant: "green" },
+    { title: "Crédits créés ce jour", value: money(dashboard.creditCreated), hint: "Reste dû au moment de la vente", icon: UsersRound, variant: "orange" },
+    { title: "Bénéfice brut sur ventes", value: money(dashboard.grossProfit), hint: "Sur les articles vendus, y compris à crédit", icon: TrendingUp, variant: "green" },
+    { title: "Marge sur encaissements (est.)", value: money(dashboard.cashMarginEstimate), hint: "Estimation proportionnelle aux paiements du jour", icon: Activity, variant: "purple" },
+    { title: "Résultat commercial estimé", value: money(dashboard.grossProfit - dashboard.expenses), hint: "Marge des ventes moins dépenses de la journée", icon: Wallet, variant: "blue" },
+    { title: "Créances clients actuelles", value: money(dashboard.outstanding), hint: "Solde restant sur toutes les ventes actives", icon: UsersRound, variant: "orange" },
     { title: "Variantes en stock faible", value: String(dashboard.lowStock), hint: "Quantité inférieure ou égale à 3", icon: CircleAlert, variant: "orange" },
-    { title: "Encaissements du jour", value: money(dashboard.collectedToday), hint: "Acomptes et règlements compris", icon: CreditCard, variant: "green" },
-    { title: "Créances clients", value: money(dashboard.outstanding), hint: "Ventes restant à régler", icon: UsersRound, variant: "orange" },
   ];
 
   function addToCart(v: Variant) {
@@ -275,12 +286,12 @@ export default function App() {
       return;
     }
     const variants = variantRows.map(row => ({
-      size: row.size.trim(),
+      size: row.size.trim() || "Unique",
       color: row.color.trim() || "Standard",
       quantity: Number(row.quantity)
     }));
     if (!variants.length || variants.some(v => !v.size || !Number.isSafeInteger(v.quantity) || v.quantity < 0)) {
-      notify("Renseignez une taille et une quantité entière positive ou nulle sur chaque ligne.", "error");
+      notify("Renseignez une quantité entière positive ou nulle pour chaque variante.", "error");
       return;
     }
     const keys = variants.map(v => v.size.toLocaleLowerCase() + "|" + v.color.toLocaleLowerCase());
@@ -292,7 +303,7 @@ export default function App() {
     try {
       await api.createProduct({ ...draft, purchasePrice, salePrice, variants });
       setAddModal(false);
-      setDraft({ name: "", category: "Maillots", purchasePrice: "", salePrice: "", variants: [] });
+      setDraft({ name: "", category: "Divers", purchasePrice: "", salePrice: "", variants: [] });
       setVariantRows([{ id: 1, size: "", color: "", quantity: "" }]);
       await reload(); notify("Produit ajouté au catalogue.");
     } catch (e) { notify(showError(e), "error"); } finally { setBusy(false); }
@@ -331,12 +342,14 @@ export default function App() {
   }
   const recentTable = (rows: Sale[]) => <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Date</th><th>Client</th><th>Total</th><th>Versé</th><th>Reste à payer</th><th>Actions</th></tr></thead><tbody>
     {rows.map(s => <tr key={s.id}>
-      <td className="strong-cell">{s.reference}</td><td>{s.createdAt.slice(0,16).replace("T"," ")}</td>
+      <td className="strong-cell">{s.reference}{s.cancelled&&<small className="negative">ANNULÉE</small>}</td><td>{s.createdAt.slice(0,16).replace("T"," ")}</td>
       <td>{s.customerName || "Comptant"}</td><td className="strong-cell">{money(s.total)}</td>
-      <td className="positive">{money(s.paid)}</td><td className={s.remaining > 0 ? "negative" : "positive"}>{s.remaining > 0 ? money(s.remaining) : "Soldé"}</td>
+      <td className={s.cancelled?"muted-cell":"positive"}>{s.cancelled?"Remboursé / annulé":money(s.paid)}</td>
+      <td className={s.cancelled?"muted-cell":s.remaining>0?"negative":"positive"}>{s.cancelled?"Annulée":s.remaining>0?money(s.remaining):"Soldé"}</td>
       <td><div className="inline-actions">
-        {s.remaining > 0 && <button className="table-action" onClick={()=>setPaymentSale(s)}><CreditCard size={15}/> Régler</button>}
-        <button className="table-action" onClick={()=>void openTicket(s.id)}><Printer size={15}/> Ticket</button>
+        {!s.cancelled&&s.remaining>0&&<button className="table-action" onClick={()=>setPaymentSale(s)}><CreditCard size={15}/> Régler</button>}
+        {!s.cancelled&&<button className="table-action" onClick={()=>void openTicket(s.id)}><Printer size={15}/> Ticket</button>}
+        {!s.cancelled&&session?.role==="admin"&&<button className="table-action" onClick={()=>setEditingSale(s)}><Pencil size={15}/> Corriger / annuler</button>}
       </div></td>
     </tr>)}
   </tbody></table></div>;
@@ -364,10 +377,15 @@ export default function App() {
       <div className={"content" + (page === "pos" ? " content-pos" : "")} ref={contentScrollRef}>
         {isBrowserPreview && <div className="browser-warning"><CircleAlert size={19}/><span><strong>Aperçu navigateur uniquement.</strong> Pour enregistrer des ventes et accéder à SQLite, lancez <code>npm run tauri dev</code> et utilisez la fenêtre de l'application, pas l'onglet localhost.</span></div>}
         {page === "dashboard" && <>
-          <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Voici l'activité de votre boutique aujourd'hui.</p></div><button className="primary-btn" onClick={() => navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
+          <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Suivez vos ventes, paiements et bénéfices pour la date sélectionnée.</p></div><button className="primary-btn" onClick={() => navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
+          <div className="period-controls dashboard-date-control">
+            <label>Journée à analyser <input type="date" value={dashboardDay} onChange={e=>setDashboardDay(e.target.value)}/></label>
+            <button className="secondary-btn" type="button" onClick={()=>setDashboardDay(localDate())}>Aujourd'hui</button>
+            <span className="muted-cell">Ventes facturées et argent encaissé sont calculés séparément.</span>
+          </div>
           <div className="stats-grid">{cards.map(c => <Stat key={c.title} {...c}/>)}</div>
           <div className="dashboard-grid">
-            <section className="panel"><div className="section-heading"><div><h2>Activité commerciale</h2><p>Les chiffres clés de votre boutique</p></div><span className="soft-label">Aujourd'hui</span></div>
+            <section className="panel"><div className="section-heading"><div><h2>Activité commerciale</h2><p>Les chiffres clés de votre boutique</p></div><span className="soft-label">{dashboardDay}</span></div>
               <div className="overview-summary"><div><span>Articles en stock</span><strong>{itemsInStock}</strong></div><div><span>Variantes</span><strong>{dashboard.variantCount}</strong></div><div><span>Ventes</span><strong>{dashboard.salesCount}</strong></div></div>
               <div className="callout"><div className="callout-icon"><BadgeCheck size={20}/></div><div><strong>Vos chiffres sont enregistrés localement</strong><p>VestiFlow fonctionne sans connexion Internet, directement sur cet ordinateur.</p></div></div>
             </section>
@@ -385,9 +403,10 @@ export default function App() {
         {page === "pos" && <>
           <div className="page-heading"><div><div className="eyebrow">POINT DE VENTE</div><h1>Caisse & ventes</h1><p>Sélectionnez des articles, leurs tailles et couleurs, puis encaissez.</p></div><span className="count-chip"><ShoppingCart size={17}/> {cart.reduce((a,b) => a+b.quantity,0)} article(s)</span></div>
           <div className="pos-layout">
-            <div className="pos-catalog"><div className="catalog-toolbar"><div className="search-field"><Search size={18}/><input placeholder="Maillot, chaussure, pointure 42, couleur, référence…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="select-wrap"><select value={category} onChange={e => setCategory(e.target.value)}><option>Tous</option>{categories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div>
+            <div className="pos-catalog"><div className="catalog-toolbar"><div className="search-field"><Search size={18}/><input placeholder="Maillot, chaussure, pointure 42, couleur, référence…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="select-wrap"><select value={category} onChange={e => setCategory(e.target.value)}><option>Tous</option>{availableCategories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div>
               <div className="pos-products-scroll" role="region" aria-label="Liste des produits de la caisse" tabIndex={0}>
-              {filtered.length ? <div className="product-grid">{filtered.map(p => <button className="product-card" key={p.id} title={p.name} onClick={() => setSelectedId(p.id)}><div className="product-picture">{p.category === "Chaussures" ? <Footprints size={38} strokeWidth={1.3}/> : <Shirt size={38} strokeWidth={1.3}/>}<span className="product-badge">{p.variants.reduce((a,v) => a+v.quantity,0)} en stock</span></div><div className="product-body"><span className="product-category">{p.category}</span><strong>{p.name}</strong><div className="product-foot"><span>{money(Math.min(...p.variants.map(v => v.salePrice)))}</span><span className="add-circle"><Plus size={17}/></span></div></div></button>)}</div> : <Empty title={products.length ? "Aucun résultat" : "Votre catalogue est vide"} description={products.length ? "Essayez une autre recherche." : "Ajoutez d'abord des vêtements dans l'onglet Catalogue."} icon={Shirt}/>}
+              {filtered.length ? <div className="product-grid">{filtered.slice(0,visibleLimit).map(p => <button className="product-card" key={p.id} title={p.name} onClick={() => setSelectedId(p.id)}><div className="product-picture">{p.category === "Chaussures" ? <Footprints size={38} strokeWidth={1.3}/> : <Shirt size={38} strokeWidth={1.3}/>}<span className="product-badge">{p.variants.reduce((a,v) => a+v.quantity,0)} en stock</span></div><div className="product-body"><span className="product-category">{p.category}</span><strong>{p.name}</strong><div className="product-foot"><span>{money(Math.min(...p.variants.map(v => v.salePrice)))}</span><span className="add-circle"><Plus size={17}/></span></div></div></button>)}</div> : <Empty title={products.length ? "Aucun résultat" : "Votre catalogue est vide"} description={products.length ? "Essayez une autre recherche." : "Ajoutez votre premier article dans le catalogue."} icon={Shirt}/>}
+              {filtered.length > visibleLimit && <button type="button" className="catalog-more" onClick={()=>setVisibleLimit(n=>n+80)}>Afficher 80 articles supplémentaires · {filtered.length-visibleLimit} restants</button>}
               </div>
             </div>
             <aside className="cart-panel"><div className="cart-header"><div><h2>Panier actuel</h2><p>{cart.length} ligne(s) dans cette vente</p></div><span className="cart-icon"><ShoppingCart size={21}/></span></div>
@@ -420,9 +439,10 @@ export default function App() {
 
         {page === "products" && <>
           <div className="page-heading"><div><div className="eyebrow">VOTRE CATALOGUE</div><h1>Produits & variantes</h1><p>Retrouvez chaque article avec ses tailles, ses couleurs et son stock disponible.</p></div><button className="primary-btn" onClick={()=>setAddModal(true)}><Plus size={18}/> Ajouter un produit</button></div>
-          <section className="panel"><div className="section-heading"><div><h2>Vêtements et chaussures</h2><p>{products.length} produit(s), {catalog.length} variante(s)</p></div><span className="soft-label"><PackageCheck size={15}/> Stock local</span></div>
+          <section className="panel"><div className="section-heading"><div><h2>Tous les articles de votre boutique</h2><p>{products.length} produit(s), {catalog.length} variante(s)</p></div><span className="soft-label"><PackageCheck size={15}/> Stock local</span></div>
             <div className="catalog-toolbar compact-toolbar"><div className="search-field"><Search size={18}/><input aria-label="Rechercher dans le catalogue" placeholder="Rechercher nom, chaussure, taille, couleur, référence…" value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={()=>setQuery("")}><X size={15}/></button>}</div><span className="search-count">{filteredVariants.length} résultat(s)</span></div>
-            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th><th>Détail</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="strong-cell" title={v.name}>{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>setProductDetailId(v.productId)}><FileText size={14}/> Détails / Modifier</button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun produit correspondant" : "Votre boutique prend forme ici"} description={catalog.length ? "Essayez une taille, une couleur ou une autre référence." : "Ajoutez votre premier produit avec ses tailles, couleurs et prix."} icon={Shirt}/>}
+            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th><th>Détail</th></tr></thead><tbody>{filteredVariants.slice(0,visibleLimit).map(v=><tr key={v.id}><td className="strong-cell" title={v.name}>{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>setProductDetailId(v.productId)}><FileText size={14}/> Détails / Modifier</button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun produit correspondant" : "Votre boutique prend forme ici"} description={catalog.length ? "Essayez une taille, une couleur ou une autre référence." : "Ajoutez votre premier produit avec ses tailles, couleurs et prix."} icon={Shirt}/>}
+            {filteredVariants.length > visibleLimit && <button type="button" className="catalog-more" onClick={()=>setVisibleLimit(n=>n+80)}>Afficher 80 variantes supplémentaires · {filteredVariants.length-visibleLimit} restantes</button>}
           </section>
         </>}
 
@@ -431,13 +451,24 @@ export default function App() {
           <div className="stats-grid two"><Stat title="Pièces disponibles" value={String(itemsInStock)} hint="Toutes variantes confondues" icon={PackageCheck} variant="blue"/><Stat title="Stock faible ou épuisé" value={String(dashboard.lowStock)} hint="Variantes de 3 pièces ou moins" icon={CircleAlert} variant="orange"/></div>
           <section className="panel"><div className="section-heading"><div><h2>État des stocks</h2><p>Les corrections sont enregistrées dans l'historique SQLite.</p></div></div>
             <div className="catalog-toolbar compact-toolbar"><div className="search-field"><Search size={18}/><input aria-label="Rechercher dans le stock" placeholder="Rechercher un article, une pointure, une couleur…" value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={()=>setQuery("")}><X size={15}/></button>}</div><span className="search-count">{filteredVariants.length} résultat(s)</span></div>
-            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Article</th><th>Variante</th><th>Stock</th><th>Action</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="muted-cell">{v.sku}</td><td className="strong-cell">{v.name}</td><td>{v.size} / {v.color}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>{setStockVariant(v);setStockDelta("1");setStockReason("Réapprovisionnement");}}>Ajuster <ArrowRight size={15}/></button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun résultat" : "Aucun stock à afficher"} description={catalog.length ? "Essayez un autre terme de recherche." : "Créez vos premiers produits pour commencer le suivi."}/>}
+            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Article</th><th>Variante</th><th>Stock</th><th>Action</th></tr></thead><tbody>{filteredVariants.slice(0,visibleLimit).map(v=><tr key={v.id}><td className="muted-cell">{v.sku}</td><td className="strong-cell">{v.name}</td><td>{v.size} / {v.color}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>{setStockVariant(v);setStockDelta("1");setStockReason("Réapprovisionnement");}}>Ajuster <ArrowRight size={15}/></button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun résultat" : "Aucun stock à afficher"} description={catalog.length ? "Essayez un autre terme de recherche." : "Créez vos premiers produits pour commencer le suivi."}/>}
+            {filteredVariants.length > visibleLimit && <button type="button" className="catalog-more" onClick={()=>setVisibleLimit(n=>n+80)}>Afficher 80 variantes supplémentaires · {filteredVariants.length-visibleLimit} restantes</button>}
           </section>
         </>}
 
         {page === "sales" && <>
           <div className="page-heading"><div><div className="eyebrow">HISTORIQUE</div><h1>Historique des ventes</h1><p>Consultez les transactions enregistrées sur cet ordinateur.</p></div><button className="primary-btn" onClick={()=>navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
-          <section className="panel"><div className="section-heading"><div><h2>Transactions récentes</h2><p>Ventes comptant et à crédit avec suivi des règlements</p></div></div>{sales.length ? recentTable(sales) : <Empty title="Aucune transaction" description="Les ventes apparaîtront ici après votre premier encaissement." icon={FileText}/>}</section>
+          <section className="panel">
+            <div className="section-heading"><div><h2>Transactions par date</h2><p>Corrigez les articles ou annulez une vente sans repayer les anciens acomptes.</p></div></div>
+            <div className="period-controls sale-date-control">
+              <label>Date des ventes <input type="date" value={salesDay} onChange={e=>setSalesDay(e.target.value)}/></label>
+              <button type="button" className="secondary-btn" onClick={()=>setSalesDay(localDate())}>Aujourd'hui</button>
+              <button type="button" className="secondary-btn" onClick={()=>setSalesDay("")}>Toutes les dates</button>
+            </div>
+            {sales.some(s=>!salesDay||s.createdAt.slice(0,10)===salesDay)
+              ? recentTable(sales.filter(s=>!salesDay||s.createdAt.slice(0,10)===salesDay))
+              : <Empty title="Aucune vente pour cette date" description="Choisissez une autre journée ou affichez toutes les dates." icon={FileText}/>}
+          </section>
         </>}
 
         {page === "customers" && <CustomersPanel
@@ -450,9 +481,27 @@ export default function App() {
 
         {page === "reports" && <>
           <div className="page-heading"><div><div className="eyebrow">ANALYSE COMMERCIALE</div><h1>Rapports de ventes</h1><p>Analysez votre activité et les marges réalisées.</p></div><button className="secondary-btn" onClick={()=>setExpenseModal(true)}><Plus size={17}/> Enregistrer une dépense</button></div>
-          <section className="panel report-filter"><div className="period-controls"><label>Du <input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Au <input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><span className="muted-cell">Les montants représentent les ventes enregistrées, hors annulations et retours (à venir).</span></section>
-          <div className="stats-grid two"><Stat title="Ventes de la période" value={money(report.reduce((s,r)=>s+r.total,0))} hint={report.reduce((s,r)=>s+r.count,0)+" transaction(s)"} icon={Wallet} variant="blue"/><Stat title="Bénéfice brut de la période" value={money(report.reduce((s,r)=>s+r.grossProfit,0))} hint="Coûts d'achat déduits" icon={TrendingUp} variant="green"/></div>
-          <section className="panel"><div className="section-heading"><div><h2>Rapport journalier</h2><p>Regroupement par date locale du poste</p></div></div>{report.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Nombre de ventes</th><th>Chiffre d'affaires</th><th>Marge brute</th></tr></thead><tbody>{report.map(r=><tr key={r.day}><td className="strong-cell">{r.day}</td><td>{r.count}</td><td className="strong-cell">{money(r.total)}</td><td className={r.grossProfit >= 0 ? "positive" : "negative"}>{money(r.grossProfit)}</td></tr>)}</tbody></table></div> : <Empty title="Aucune vente sur cette période" description="Choisissez une autre période ou réalisez votre première vente." icon={BarChart3}/>}</section>
+          <section className="panel report-filter"><div className="period-controls">
+            <label>Du <input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+            <label>Au <input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
+            <button type="button" className="secondary-btn" onClick={()=>{setFrom(localDate());setTo(localDate());}}>Aujourd'hui</button>
+            </div><span className="muted-cell">Ventes facturées, argent réellement encaissé, crédits et dépenses sont distincts. Les annulations sont exclues du chiffre d'affaires.</span></section>
+          <div className="stats-grid">
+            <Stat title="Ventes facturées" value={money(report.reduce((n,r)=>n+r.total,0))} hint={report.reduce((n,r)=>n+r.count,0)+" vente(s) active(s)"} icon={Wallet} variant="blue"/>
+            <Stat title="Encaissements nets" value={money(report.reduce((n,r)=>n+r.collected,0))} hint="Paiements de la période moins remboursements" icon={CreditCard} variant="green"/>
+            <Stat title="Crédits accordés" value={money(report.reduce((n,r)=>n+r.creditCreated,0))} hint="Soldes non réglés à l'ouverture de chaque vente" icon={UsersRound} variant="orange"/>
+            <Stat title="Bénéfice brut commercial" value={money(report.reduce((n,r)=>n+r.grossProfit,0))} hint="Coût des marchandises vendu déduit, même à crédit" icon={TrendingUp} variant="green"/>
+            <Stat title="Marge sur paiements (est.)" value={money(report.reduce((n,r)=>n+r.cashMarginEstimate,0))} hint="Marge proratisée aux encaissements nets" icon={Activity} variant="purple"/>
+            <Stat title="Dépenses enregistrées" value={money(report.reduce((n,r)=>n+r.expenses,0))} hint="Sommes sorties durant la période" icon={Wallet} variant="orange"/>
+          </div>
+          <section className="panel"><div className="section-heading"><div><h2>Rapport journalier</h2><p>Regroupement par date du PC. Les paiements des anciennes dettes apparaissent à leur date de règlement.</p></div></div>
+            {report.length?<div className="table-wrap report-sales-table"><table><thead><tr><th>Date</th><th>Ventes</th><th>Facturé</th><th>Encaissé net</th><th>Crédit créé</th><th>Bénéfice brut</th><th>Dépenses</th></tr></thead>
+              <tbody>{report.map(r=><tr key={r.day}><td className="strong-cell">{r.day}</td><td>{r.count}</td>
+                <td>{money(r.total)}</td><td className="positive">{money(r.collected)}</td>
+                <td className="negative">{money(r.creditCreated)}</td><td>{money(r.grossProfit)}</td><td>{money(r.expenses)}</td>
+              </tr>)}</tbody></table></div>
+              :<Empty title="Aucune opération sur cette période" description="Choisissez une autre période." icon={BarChart3}/>}
+          </section>
         </>}
 
         {page === "settings" && <>
@@ -473,26 +522,31 @@ export default function App() {
             </section>
             <div className="settings-side">
               <section className="panel"><div className="section-heading"><div><h2>Aperçu du document</h2><p>Prévisualisation avec des données d'exemple</p></div><Printer size={19}/></div><div className="settings-ticket-preview"><ReceiptView shop={shop} receipt={sampleReceipt}/></div><p className="settings-preview-hint">Enregistrez les paramètres pour les utiliser sur les prochains tickets.</p></section>
-              <section className="panel"><div className="section-heading"><div><h2>Sauvegardes locales</h2><p>Protégez votre historique de vente</p></div><DatabaseBackup size={23} className="accent-icon"/></div><p className="backup-copy">Créez une copie cohérente de SQLite et transférez-la ensuite sur une clé USB distincte.</p><button className="secondary-btn" type="button" disabled={busy} onClick={doBackup}><Download size={17}/> Créer une sauvegarde locale</button><div className="warning-note"><CircleAlert size={17}/> La restauration et l'export direct sur clé USB restent à finaliser.</div></section>
+              <BackupPanel/>
+              <section className="panel"><div className="section-heading"><div><h2>Sauvegarde locale rapide</h2><p>Copie supplémentaire dans le dossier interne du logiciel.</p></div><DatabaseBackup size={23} className="accent-icon"/></div>
+                <button className="secondary-btn" type="button" disabled={busy} onClick={doBackup}><Download size={17}/> Créer une copie interne</button>
+                <p className="backup-copy">Pour une protection contre une panne du PC, utilisez le bouton « Sauvegarder sur clé USB » ci-dessus.</p>
+              </section>
             </div>
           </div>
         </>}
-        <footer className="footer"><span>VestiFlow <b>v0.2.4</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
+        <footer className="footer"><span>VestiFlow <b>v0.3.0</b> · Votre boutique, vos données.</span><span>100 % local · FCFA</span></footer>
       </div>
     </main>
 
-    {selected && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedId(null);}}><div className="modal"><div className="modal-header"><div><span className="eyebrow">CHOISIR UNE VARIANTE</span><h2>{selected.name}</h2><p>{selected.category} · Choisissez la taille et la couleur</p></div><button className="icon-button" onClick={()=>setSelectedId(null)} aria-label="Fermer"><X size={20}/></button></div><div className="variant-list">{selected.variants.map(v=><button key={v.id} disabled={v.quantity===0} onClick={()=>addToCart(v)} className="variant-choice"><span className="variant-square">{v.size}</span><span><strong>{v.color}</strong><small>{v.quantity ? v.quantity+" disponible(s)" : "En rupture"}</small></span><strong>{money(v.salePrice)}</strong><Plus size={17}/></button>)}</div></div></div>}
+    {selected && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSelectedId(null);}}><div className="modal"><div className="modal-header"><div><span className="eyebrow">CHOISIR UNE VARIANTE</span><h2>{selected.name}</h2><p>{selected.category} · Choisissez la taille et la couleur</p></div><button className="icon-button" onClick={()=>setSelectedId(null)} aria-label="Fermer"><X size={20}/></button></div>{selected.variants.length>30 ? <div className="variant-modal-search"><p>Plus de 30 variantes : recherchez directement une taille, une couleur ou une référence.</p><VariantSearchPicker catalog={selected.variants} onSelect={addToCart}/></div> : <div className="variant-list">{selected.variants.map(v=><button key={v.id} disabled={v.quantity===0} onClick={()=>addToCart(v)} className="variant-choice"><span className="variant-square">{v.size}</span><span><strong>{v.color}</strong><small>{v.quantity ? v.quantity+" disponible(s)" : "En rupture"}</small></span><strong>{money(v.salePrice)}</strong><Plus size={17}/></button>)}</div>}</div></div>}
 
     {addModal && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAddModal(false);}}>
       <form className="modal product-modal stable-product-modal" onSubmit={doAddProduct}>
         <div className="modal-header">
-          <div><span className="eyebrow">NOUVEL ARTICLE</span><h2>Ajouter un produit</h2><p>Indiquez les informations de l’article, ses variantes et les quantités initiales.</p></div>
+          <div><span className="eyebrow">NOUVEL ARTICLE</span><h2>Ajouter un produit</h2><p>Créez un vêtement, une chaussure, une ceinture ou tout autre article avec son stock.</p></div>
           <button type="button" className="icon-button" onClick={()=>setAddModal(false)} aria-label="Fermer"><X size={20}/></button>
         </div>
         <div className="product-form-scroll" role="region" aria-label="Champs et variantes du produit" tabIndex={0}>
+        <datalist id="vestiflow-categories">{availableCategories.map(c=><option key={c} value={c}/>)}</datalist>
         <div className="form-grid two-cols">
           <label>Nom du produit<input required placeholder="Ex. Maillot domicile" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label>
-          <label>Catégorie<select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}>{categories.map(c=><option key={c}>{c}</option>)}</select></label>
+          <label>Catégorie (modifiable librement)<input required maxLength={60} list="vestiflow-categories" placeholder="Ex. Ceintures, Quincaillerie, Divers…" value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}/></label>
           <label>Prix d'achat (FCFA)<input type="number" required min="0" placeholder="Ex. 5000" value={draft.purchasePrice} onChange={e=>setDraft({...draft,purchasePrice:e.target.value})}/></label>
           <label>Prix de vente (FCFA)<input type="number" required min="0" placeholder="Ex. 8500" value={draft.salePrice} onChange={e=>setDraft({...draft,salePrice:e.target.value})}/></label>
         </div>
@@ -507,14 +561,14 @@ export default function App() {
           <div className="variant-grid-head" aria-hidden="true"><span>Taille</span><span>Couleur</span><span>Quantité</span><span></span></div>
           <div className="variant-editor-list">
             {variantRows.map(row => <div className="variant-editor-row" key={row.id}>
-              <input aria-label="Taille" required list="size-options" placeholder="Ex. M, XL, 32…" value={row.size} onChange={e=>updateVariantRow(row.id,"size",e.target.value)}/>
+              <input aria-label="Taille ou modèle (facultatif)" list="size-options" placeholder="Unique, M, XL, 42…" value={row.size} onChange={e=>updateVariantRow(row.id,"size",e.target.value)}/>
               <input aria-label="Couleur" placeholder="Ex. Bleu" value={row.color} onChange={e=>updateVariantRow(row.id,"color",e.target.value)}/>
               <input aria-label="Quantité" type="number" required min="0" step="1" placeholder="Ex. 5" value={row.quantity} onChange={e=>updateVariantRow(row.id,"quantity",e.target.value)}/>
               <button type="button" className="remove-variant" aria-label="Supprimer cette variante" title="Supprimer la variante" disabled={variantRows.length===1} onClick={()=>setVariantRows(rows=>rows.filter(r=>r.id!==row.id))}><Trash2 size={17}/></button>
             </div>)}
           </div>
           <button type="button" className="add-variant-btn" onClick={addVariantRow}><Plus size={17}/> Ajouter une taille / couleur</button>
-          <p className="variant-hint">Astuce : vous pouvez saisir les tailles textiles (M, L, XL) ou numériques (30, 32, 34). Couleur vide = Standard.</p>
+          <p className="variant-hint">Astuce : vous pouvez saisir les tailles textiles (M, L, XL) ou numériques (30, 32, 34). Taille vide = Unique et couleur vide = Standard pour les articles sans taille, comme ceintures ou accessoires.</p>
         </div>
         </div>
         <div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setAddModal(false)}>Annuler</button><button type="submit" disabled={busy} className="primary-btn"><Plus size={17}/> Enregistrer le produit</button></div>
@@ -525,8 +579,11 @@ export default function App() {
       customer={editingCustomer} onClose={()=>{setCustomerEditorOpen(false);setEditingCustomer(null);}}
       onSaved={id=>{void afterCustomerSaved(id);}}/>}
     {paymentSale && <PaymentDialog sale={paymentSale} onClose={()=>setPaymentSale(null)} onSaved={()=>{void afterPaymentSaved();}}/>}
+    {editingSale&&<SaleEditor key={editingSale.id} sale={editingSale} customers={customers} catalog={catalog}
+      onClose={()=>setEditingSale(null)}
+      onSaved={()=>{setEditingSale(null);void reload().then(loadReport).then(()=>notify("Vente corrigée ou annulée. Paiements et stock recalculés sans double encaissement.")).catch(e=>notify(showError(e),"error"));}}/>}
     {productDetailId !== null && products.find(p=>p.id===productDetailId) && <ProductDetailModal
-      product={products.find(p=>p.id===productDetailId)!} categories={categories}
+      product={products.find(p=>p.id===productDetailId)!} categories={availableCategories}
       onClose={()=>setProductDetailId(null)}
       onSaved={()=>{setProductDetailId(null);void reload().then(()=>notify("Produit modifié.")).catch(e=>notify(showError(e),"error"));}}
     />}

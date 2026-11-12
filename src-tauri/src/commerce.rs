@@ -50,7 +50,8 @@ pub(crate) fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
         )?;
         tx.execute("INSERT INTO schema_migrations(name) VALUES('legacy_paid_sales_v1')",[])?;
     }
-    tx.commit()
+    tx.commit()?;
+    crate::sales_management::migrate(conn)
 }
 
 #[derive(Serialize)]
@@ -105,12 +106,13 @@ pub fn list_customers(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Vec<Cu
     let mut stmt=conn.prepare(r#"
         SELECT c.id,c.name,c.phone,c.address,c.note,c.created_at,
                COALESCE(SUM(s.total),0),
-               COALESCE(SUM((SELECT COALESCE(SUM(p.amount),0)
-                             FROM sale_payments p WHERE p.sale_id=s.id)),0),
+               COALESCE(SUM(
+                   COALESCE((SELECT SUM(p.amount) FROM sale_payments p WHERE p.sale_id=s.id),0)
+                   -COALESCE((SELECT SUM(r.amount) FROM sale_refunds r WHERE r.sale_id=s.id),0)),0),
                COUNT(s.id)
         FROM customers c
         LEFT JOIN sale_customers sc ON sc.customer_id=c.id
-        LEFT JOIN sales s ON s.id=sc.sale_id
+        LEFT JOIN sales s ON s.id=sc.sale_id AND NOT EXISTS(SELECT 1 FROM sale_cancellations cc WHERE cc.sale_id=s.id)
         GROUP BY c.id
         ORDER BY c.name COLLATE NOCASE
     "#).map_err(error)?;
@@ -140,10 +142,11 @@ pub fn list_customer_sales(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i64)
     let conn=db.0.lock().map_err(error)?;
     let mut stmt=conn.prepare(
         "SELECT s.id,s.reference,s.created_at,s.total,
-                COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0),
+                COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0)
+                -COALESCE((SELECT SUM(amount) FROM sale_refunds WHERE sale_id=s.id),0),
                 s.payment_method
          FROM sales s JOIN sale_customers sc ON sc.sale_id=s.id
-         WHERE sc.customer_id=?1 ORDER BY s.id DESC"
+         WHERE sc.customer_id=?1 AND NOT EXISTS(SELECT 1 FROM sale_cancellations cc WHERE cc.sale_id=s.id) ORDER BY s.id DESC"
     ).map_err(error)?;
     let rows=stmt.query_map(params![customer_id],|r|{
         let total:i64=r.get(3)?;
@@ -159,7 +162,7 @@ pub fn list_customer_sales(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i64)
 #[derive(Serialize)]
 #[serde(rename_all="camelCase")]
 pub struct PaymentEntry {
-    id:i64, sale_id:i64, reference:String, amount:i64, method:String, created_at:String
+    id:i64, sale_id:i64, reference:String, amount:i64, method:String, created_at:String, kind:String
 }
 
 #[tauri::command]
@@ -168,15 +171,22 @@ pub fn list_customer_payments(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i6
     require_auth(&auth)?;
     let conn=db.0.lock().map_err(error)?;
     let mut stmt=conn.prepare(r#"
-        SELECT p.id,p.sale_id,s.reference,p.amount,p.method,p.created_at
+        SELECT p.id,p.sale_id,s.reference,p.amount,p.method,p.created_at,'encaissement'
         FROM sale_payments p
         JOIN sales s ON s.id=p.sale_id
         JOIN sale_customers sc ON sc.sale_id=s.id
-        WHERE sc.customer_id=?1 ORDER BY p.id DESC
+        WHERE sc.customer_id=?1
+        UNION ALL
+        SELECT r.id,r.sale_id,s.reference,-r.amount,r.method,r.created_at,'remboursement'
+        FROM sale_refunds r
+        JOIN sales s ON s.id=r.sale_id
+        JOIN sale_customers sc ON sc.sale_id=s.id
+        WHERE sc.customer_id=?1
+        ORDER BY 6 DESC,1 DESC
     "#).map_err(error)?;
     let rows=stmt.query_map(params![customer_id],|r|Ok(PaymentEntry{
         id:r.get(0)?,sale_id:r.get(1)?,reference:r.get(2)?,
-        amount:r.get(3)?,method:r.get(4)?,created_at:r.get(5)?
+        amount:r.get(3)?,method:r.get(4)?,created_at:r.get(5)?,kind:r.get(6)?
     })).map_err(error)?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
 }
@@ -200,10 +210,12 @@ pub(crate) fn settle(conn:&mut Connection, sale_id:i64, amount:i64, method:&str,
         "SELECT total,reference FROM sales WHERE id=?1",params![sale_id],
         |r|Ok((r.get(0)?,r.get(1)?))
     ).optional().map_err(error)?.ok_or("Vente introuvable.")?;
-    let paid:i64=tx.query_row(
-        "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE sale_id=?1",
-        params![sale_id],|r|r.get(0)
-    ).map_err(error)?;
+    if crate::sales_management::cancelled(&tx,sale_id)? {
+        return Err("Cette vente est annulée, aucun règlement ne peut être ajouté.".into());
+    }
+    // Les remboursements diminuent le montant effectivement conservé.
+    // Après une correction ultérieure, seul le solde net doit être encaissable.
+    let paid=crate::sales_management::paid_net(&tx,sale_id)?;
     let previous=tx.query_row(
         "SELECT sale_id,amount FROM sale_payments WHERE request_id=?1",
         params![request_id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?))

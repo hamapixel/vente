@@ -1,4 +1,6 @@
 mod commerce;
+mod sales_management;
+mod backup_management;
 use chrono::Local;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::{rand_core::OsRng, SaltString}};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -395,10 +397,8 @@ fn checkout_core(conn: &mut Connection, input: CheckoutInput) -> Result<Receipt,
         ))
     ).optional().map_err(error)?;
     if let Some((id,reference,total,total_cost,created_at)) = existing {
-        let paid:i64=tx.query_row(
-            "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE sale_id=?1",
-            params![id],|r|r.get(0)
-        ).map_err(error)?;
+        // Une reprise idempotente retourne l'état réel de la vente, remboursements inclus.
+        let paid=sales_management::paid_net(&tx,id)?;
         return Ok(Receipt{id,reference,total,total_cost,created_at,paid,remaining:total-paid});
     }
 
@@ -484,34 +484,33 @@ struct Dashboard {
     sales_total: i64, gross_profit: i64, expenses: i64,
     sales_count: i64, low_stock: i64, variant_count: i64,
     collected_today: i64, outstanding: i64,
+    credit_created: i64, refunds: i64, cash_margin_estimate: i64,
 }
 
 #[tauri::command]
-fn get_dashboard(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Dashboard,String> {
+fn get_dashboard(db: State<'_, Db>, auth: State<'_, Auth>, day: Option<String>)
+    -> Result<Dashboard,String> {
     require_admin(&auth)?;
-    let conn = db.0.lock().map_err(error)?;
-    let (sales_total,gross_profit,sales_count): (i64,i64,i64) = conn.query_row(
-        "SELECT COALESCE(SUM(total),0), COALESCE(SUM(total-total_cost),0), COUNT(*)
-         FROM sales WHERE substr(created_at,1,10)=?1",
-        params![today()],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))
-    ).map_err(error)?;
-    let expenses = conn.query_row(
-        "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE substr(created_at,1,10)=?1",
-        params![today()],|r|r.get(0)
-    ).map_err(error)?;
-    let (low_stock,variant_count): (i64,i64) = conn.query_row(
+    let conn=db.0.lock().map_err(error)?;
+    let summary=sales_management::summary_for_day(&conn,day.as_deref().unwrap_or(&today()))?;
+    let (low_stock,variant_count):(i64,i64)=conn.query_row(
         "SELECT COALESCE(SUM(CASE WHEN quantity<=3 THEN 1 ELSE 0 END),0),COUNT(*) FROM variants",
         [],|r|Ok((r.get(0)?,r.get(1)?))
     ).map_err(error)?;
-    let collected_today:i64=conn.query_row(
-        "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE substr(created_at,1,10)=?1",
-        params![today()],|r|r.get(0)
-    ).map_err(error)?;
     let outstanding:i64=conn.query_row(
-        "SELECT COALESCE(SUM(s.total-COALESCE((SELECT SUM(p.amount) FROM sale_payments p WHERE p.sale_id=s.id),0)),0)
-         FROM sales s",[],|r|r.get(0)
+        "SELECT COALESCE(SUM(s.total -
+                  COALESCE((SELECT SUM(p.amount) FROM sale_payments p WHERE p.sale_id=s.id),0) +
+                  COALESCE((SELECT SUM(r.amount) FROM sale_refunds r WHERE r.sale_id=s.id),0)),0)
+         FROM sales s WHERE NOT EXISTS(SELECT 1 FROM sale_cancellations c WHERE c.sale_id=s.id)",
+        [],|r|r.get(0)
     ).map_err(error)?;
-    Ok(Dashboard {sales_total,gross_profit,expenses,sales_count,low_stock,variant_count,collected_today,outstanding})
+    Ok(Dashboard {
+        sales_total:summary.sales_total,gross_profit:summary.gross_profit,
+        expenses:summary.expenses,sales_count:summary.sales_count,low_stock,variant_count,
+        collected_today:summary.collected,outstanding,
+        credit_created:summary.credit_created,refunds:summary.refunds,
+        cash_margin_estimate:summary.cash_margin_estimate
+    })
 }
 
 #[derive(Serialize)]
@@ -520,49 +519,73 @@ struct Sale {
     id: i64, reference: String, total: i64, total_cost: i64,
     payment_method: String, created_at: String,
     paid: i64, remaining: i64, customer_id: Option<i64>, customer_name: Option<String>,
+    cancelled: bool,
 }
 
 #[tauri::command]
 fn get_sales(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Vec<Sale>,String> {
     require_auth(&auth)?;
-    let conn = db.0.lock().map_err(error)?;
+    let conn=db.0.lock().map_err(error)?;
     let mut stmt = conn.prepare(
         "SELECT s.id,s.reference,s.total,s.total_cost,s.payment_method,s.created_at,
-            COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0),
-            sc.customer_id,c.name
+                COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0)
+                -COALESCE((SELECT SUM(amount) FROM sale_refunds WHERE sale_id=s.id),0),
+                sc.customer_id,c.name,
+                EXISTS(SELECT 1 FROM sale_cancellations a WHERE a.sale_id=s.id)
          FROM sales s
          LEFT JOIN sale_customers sc ON sc.sale_id=s.id
          LEFT JOIN customers c ON c.id=sc.customer_id
          ORDER BY s.id DESC LIMIT 1000"
     ).map_err(error)?;
-    let rows=stmt.query_map([],|r|Ok(Sale {
-        id:r.get(0)?,reference:r.get(1)?,total:r.get(2)?,
-        total_cost:r.get(3)?,payment_method:r.get(4)?,created_at:r.get(5)?,
-        paid:r.get(6)?,remaining:r.get::<_,i64>(2)?-r.get::<_,i64>(6)?,
-        customer_id:r.get(7)?,customer_name:r.get(8)?
-    })).map_err(error)?;
+    let rows=stmt.query_map([],|r|{
+        let total:i64=r.get(2)?;
+        let net_paid:i64=r.get(6)?;
+        let cancelled:bool=r.get(9)?;
+        Ok(Sale {
+            id:r.get(0)?,reference:r.get(1)?,total,
+            total_cost:r.get(3)?,payment_method:r.get(4)?,created_at:r.get(5)?,
+            paid:if cancelled {0} else {net_paid},
+            remaining:if cancelled {0} else {total-net_paid},
+            customer_id:r.get(7)?,customer_name:r.get(8)?,cancelled
+        })
+    }).map_err(error)?;
     rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ReportDay { day: String, total: i64, gross_profit: i64, count: i64 }
+struct ReportDay {
+    day: String, total: i64, gross_profit: i64, count: i64,
+    collected: i64, refunds: i64, credit_created: i64, expenses: i64,
+    cash_margin_estimate: i64
+}
 
 #[tauri::command]
-fn get_report(db: State<'_, Db>, auth: State<'_, Auth>, from: String, to: String) -> Result<Vec<ReportDay>,String> {
+fn get_report(db: State<'_, Db>, auth: State<'_, Auth>, from: String, to: String)
+    -> Result<Vec<ReportDay>,String> {
     require_admin(&auth)?;
-    if from.len()!=10 || to.len()!=10 || from>to { return Err("Période invalide.".into()); }
-    let conn = db.0.lock().map_err(error)?;
-    let mut stmt = conn.prepare(
-        "SELECT substr(created_at,1,10),COALESCE(SUM(total),0),
-                COALESCE(SUM(total-total_cost),0),COUNT(*)
-         FROM sales WHERE substr(created_at,1,10) BETWEEN ?1 AND ?2
-         GROUP BY substr(created_at,1,10) ORDER BY 1 DESC"
-    ).map_err(error)?;
-    let rows=stmt.query_map(params![from,to],|r|Ok(ReportDay {
-        day:r.get(0)?,total:r.get(1)?,gross_profit:r.get(2)?,count:r.get(3)?
-    })).map_err(error)?;
-    rows.collect::<rusqlite::Result<Vec<_>>>().map_err(error)
+    let start=chrono::NaiveDate::parse_from_str(&from,"%Y-%m-%d")
+        .map_err(|_|"Date de début invalide.")?;
+    let end=chrono::NaiveDate::parse_from_str(&to,"%Y-%m-%d")
+        .map_err(|_|"Date de fin invalide.")?;
+    if start>end || (end-start).num_days()>366 {return Err("Sélectionnez une période de 367 jours maximum.".into());}
+    let conn=db.0.lock().map_err(error)?;
+    let mut rows=Vec::new();
+    let mut date=end;
+    loop {
+        let day=date.format("%Y-%m-%d").to_string();
+        let d=sales_management::summary_for_day(&conn,&day)?;
+        if d.sales_count>0||d.collected!=0||d.expenses>0||d.refunds>0 {
+            rows.push(ReportDay {
+                day, total:d.sales_total,gross_profit:d.gross_profit,count:d.sales_count,
+                collected:d.collected,refunds:d.refunds,credit_created:d.credit_created,
+                expenses:d.expenses,cash_margin_estimate:d.cash_margin_estimate
+            });
+        }
+        if date==start {break;}
+        date=date.pred_opt().ok_or("Date invalide.")?;
+    }
+    Ok(rows)
 }
 
 #[tauri::command]
@@ -667,6 +690,7 @@ struct ReceiptDocument {
 fn get_receipt(db: State<'_, Db>, auth: State<'_, Auth>, sale_id: i64) -> Result<ReceiptDocument,String> {
     require_auth(&auth)?;
     let conn=db.0.lock().map_err(error)?;
+    if sales_management::cancelled(&conn,sale_id)? { return Err("Cette vente a été annulée : le ticket de vente ne peut plus être imprimé.".into()); }
     let (reference,created_at,payment_method,subtotal,discount,total)=conn.query_row(
         "SELECT reference,created_at,payment_method,subtotal,discount,total FROM sales WHERE id=?1",
         params![sale_id],
@@ -690,7 +714,12 @@ fn get_receipt(db: State<'_, Db>, auth: State<'_, Auth>, sale_id: i64) -> Result
          WHERE sc.sale_id=?1",params![sale_id],|r|r.get(0)
     ).optional().map_err(error)?;
     Ok(ReceiptDocument{reference,created_at,payment_method,subtotal,discount,total,
-        paid,remaining:total-paid,customer_name,lines})
+        paid:paid-sales_management_refunds(&conn,sale_id)?,remaining:total-paid+sales_management_refunds(&conn,sale_id)?,customer_name,lines})
+}
+
+fn sales_management_refunds(conn:&Connection,sale_id:i64)->Result<i64,String>{
+    conn.query_row("SELECT COALESCE(SUM(amount),0) FROM sale_refunds WHERE sale_id=?1",
+        params![sale_id],|r|r.get(0)).map_err(error)
 }
 
 #[tauri::command]
@@ -706,6 +735,7 @@ fn backup_now(app: tauri::AppHandle, db: State<'_, Db>, auth: State<'_, Auth>) -
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let directory=app.path().app_local_data_dir()?;
             fs::create_dir_all(&directory)?;
@@ -713,6 +743,7 @@ pub fn run() {
             conn.busy_timeout(Duration::from_secs(5))?;
             init_db(&conn)?;
             commerce::migrate(&mut conn)?;
+            sales_management::migrate(&mut conn)?;
             app.manage(Db(Mutex::new(conn)));
             app.manage(Auth(Mutex::new(None)));
             app.manage(LoginGuard(Mutex::new(FailedLogin::default())));
@@ -726,7 +757,10 @@ pub fn run() {
             commerce::create_customer,commerce::update_customer,
             commerce::list_customers,commerce::list_customer_sales,commerce::list_customer_payments,
             commerce::record_payment,commerce::update_product,
-            commerce::product_history
+            commerce::product_history,
+            sales_management::get_sale_detail,sales_management::change_sale,
+            sales_management::cancel_sale,sales_management::day_summary,
+            backup_management::export_backup,backup_management::restore_backup
         ])
         .run(tauri::generate_context!())
         .expect("Erreur de lancement de VestiFlow");

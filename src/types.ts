@@ -19,6 +19,9 @@ export interface Dashboard {
   variantCount: number;
   collectedToday: number;
   outstanding: number;
+  creditCreated: number;
+  refunds: number;
+  cashMarginEstimate: number;
 }
 export interface Sale {
   id: number;
@@ -31,12 +34,18 @@ export interface Sale {
   remaining: number;
   customerId: number | null;
   customerName: string | null;
+  cancelled: boolean;
 }
 export interface ReportDay {
   day: string;
   total: number;
   grossProfit: number;
   count: number;
+  collected: number;
+  refunds: number;
+  creditCreated: number;
+  expenses: number;
+  cashMarginEstimate: number;
 }
 export interface LoginBrand {
   name: string;
@@ -123,6 +132,7 @@ export interface PaymentEntry {
   amount: number;
   method: string;
   createdAt: string;
+  kind: "encaissement" | "remboursement";
 }
 export interface ProductEdit {
   productId: number;
@@ -155,3 +165,30 @@ export interface CustomerSale {
   remaining: number;
   paymentMethod: string;
 }
+
+export interface SaleDetailLine {
+  variantId: number; name: string; variant: string;
+  quantity: number; unitPrice: number; unitCost: number;
+}
+export interface SaleDetail {
+  id: number; reference: string; total: number; subtotal: number;
+  discount: number; paid: number; remaining: number;
+  customerId: number | null; cancelled: boolean;
+  lines: SaleDetailLine[];
+}
+export interface SaleChange {
+  saleId: number; requestId: string;
+  items: { variantId: number; quantity: number }[];
+  discount: number; customerId: number | null; additionalPayment: number;
+  refundAmount: number; paymentMethod: string; reason: string;
+}
+export interface SaleCancellation {
+  saleId: number; requestId: string; reason: string;
+  refundedAmount: number; refundMethod: string;
+}
+export interface DaySummary {
+  day: string; salesTotal: number; grossProfit: number;
+  salesCount: number; collected: number; refunds: number;
+  creditCreated: number; expenses: number; cashMarginEstimate: number;
+}
+export interface RestoreResult { safetyCopy: string; message: string; }

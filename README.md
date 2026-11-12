@@ -47,7 +47,7 @@ Données propres à chaque installation. Aucune télémétrie ni requête résea
 - [Recette de validation fonctionnelle et sécurité](docs/RECETTE_SECURITE.md)
 - Pour construire l'installateur sur **votre poste de développement** : exécuter le script PowerShell scripts/build-installer.ps1 après validation du projet.
 
-La dernière version du code n'est **pas encore approuvée pour les ventes de clients réels**. La base SQLite n'est pas chiffrée au repos et l'export/restauration hors disque reste à finaliser.
+La version 0.3.0 est **un pilote non approuvé pour la vente à des clients réels**. L'export et la restauration USB sont implémentés, mais doivent être testés sur de vrais PC. La base SQLite et les fichiers `.db` exportés ne sont **pas chiffrés** : protéger physiquement les clés USB et ne pas partager les sauvegardes.
 
 ## Clients, crédits et modification des produits (branche de développement)
 
@@ -87,3 +87,12 @@ VestiFlow bloque désormais les gestes horizontaux dominants et le zoom WebView2
 Le ticket de caisse pouvait apparaître sous forme d'une **bande horizontale écrasée** sur certains PC ProBook (hauteur de fenêtre réduite ou mise à l'échelle Windows importante). La modale ne définissait qu'une hauteur maximale, et la zone centrale flex pouvait se retrouver sans hauteur utile. Le correctif affecte une **hauteur réelle calculée selon la WebView** à la fenêtre Ticket/Facture ; seuls les éléments du document défilent, les boutons Retour et Imprimer restent accessibles. Le format thermique et A4 restent disponibles. Un test de géométrie du navigateur Edge est exécuté en CI sur cinq tailles de fenêtre.
 
 Le correctif n'affecte pas la base de données, les ventes, les stocks ou les dettes et conserve l'identifiant technique `ml.modestock.local` et le fichier `modestock.db`.
+
+
+## VestiFlow 0.3.0 — corrections financières et récupération USB (branche pilote)
+
+Cette version introduit la modification contrôlée d'une vente (articles, quantités, remise, client), l'annulation avec retour du stock, les remboursements traçables et le tableau de bord filtré par journée. **Les paiements déjà reçus ne sont jamais enregistrés une seconde fois** : le calcul des dettes utilise les encaissements diminués des remboursements. Toute correction impose une justification et laisse une trace. Seul l'administrateur peut corriger ou annuler une vente.
+
+Dans **Paramètres → Sauvegarde et restauration professionnelles**, exporter une base SQLite vérifiée vers une clé USB, puis la restaurer sur un PC de remplacement. La restauration exige une confirmation explicite, vérifie l'intégrité du fichier et crée une copie de secours avant remplacement. **Elle remplace les données du PC cible et ne fusionne pas deux boutiques.**
+
+Pour la recette, voir [le guide 0.3.0](docs/RECETTE_VESTIFLOW_0_3.md) et la [PR de développement #7](https://github.com/hamapixel/vente/pull/7). Un installateur **pilote non signé** est conservé quelques jours dans les artefacts du workflow GitHub Actions Windows. Ne pas le distribuer aux commerçants avant les tests réels (restauration USB, ProBook, imprimantes 80 mm/A4) et la signature Windows.
