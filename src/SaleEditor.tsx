@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowLeftRight, Check, CircleAlert, CreditCard, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { ArrowLeftRight, Check, CircleAlert, RotateCcw, Trash2, X } from "lucide-react";
 import { api } from "./api";
 import type { Customer, Sale, SaleDetail, Variant } from "./types";
 
