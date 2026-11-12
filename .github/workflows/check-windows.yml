@@ -37,6 +37,9 @@ jobs:
       - name: Tester le ticket dans Edge (5 tailles de fenetre)
         shell: pwsh
         run: ./scripts/check-ticket-preview.ps1
+      - name: Tester le formulaire produit dans Edge (6 tailles de fenetre)
+        shell: pwsh
+        run: ./scripts/check-product-modal.ps1
       - name: Verifier Rust et Tauri
         run: cargo check --manifest-path src-tauri/Cargo.toml
       - name: Tester la sécurité locale et la préservation SQLite
