@@ -49,4 +49,15 @@ jobs:
           $setups = @(Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "VestiFlow_0.3.0_*setup.exe" -ErrorAction Stop)
           if ($setups.Count -ne 1) { throw "Installateur VestiFlow 0.3.0 introuvable" }
           Write-Host "Setup : $($setups[0].FullName)"
-          Get-FileHash $setups[0].FullName -Algorithm SHA256
+          $hash = Get-FileHash $setups[0].FullName -Algorithm SHA256
+          Write-Host "SHA256 : $($hash.Hash)"
+          "$($hash.Hash)  $($setups[0].Name)" | Set-Content -Path "src-tauri/target/release/bundle/nsis/SHA256.txt" -Encoding ascii
+      - name: Publier l'installateur pilote pour tests Windows (non signe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: VestiFlow-0.3.0-PILOTE-NonSigne
+          path: |
+            src-tauri/target/release/bundle/nsis/VestiFlow_0.3.0_*setup.exe
+            src-tauri/target/release/bundle/nsis/SHA256.txt
+          if-no-files-found: error
+          retention-days: 7
