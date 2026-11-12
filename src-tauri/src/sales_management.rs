@@ -202,7 +202,7 @@ pub(crate) fn change_sale_core(conn:&mut Connection,input:SaleChange,actor:&str)
     if input.discount<0||input.discount>subtotal{return Err("Remise invalide.".into());}
     let total=subtotal-input.discount;
     let paid_before=money_sum(&tx,input.sale_id)?;
-    let to_refund=paid_before.saturating_sub(total);
+    let to_refund=(paid_before-total).max(0);
     if input.refund_amount!=to_refund {
         return Err(format!("Le nouveau total exige le remboursement exact de {} FCFA.",to_refund));
     }
