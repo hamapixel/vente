@@ -474,9 +474,27 @@ export default function App() {
 
         {page === "reports" && <>
           <div className="page-heading"><div><div className="eyebrow">ANALYSE COMMERCIALE</div><h1>Rapports de ventes</h1><p>Analysez votre activité et les marges réalisées.</p></div><button className="secondary-btn" onClick={()=>setExpenseModal(true)}><Plus size={17}/> Enregistrer une dépense</button></div>
-          <section className="panel report-filter"><div className="period-controls"><label>Du <input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Au <input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div><span className="muted-cell">Les montants représentent les ventes enregistrées, hors annulations et retours (à venir).</span></section>
-          <div className="stats-grid two"><Stat title="Ventes de la période" value={money(report.reduce((s,r)=>s+r.total,0))} hint={report.reduce((s,r)=>s+r.count,0)+" transaction(s)"} icon={Wallet} variant="blue"/><Stat title="Bénéfice brut de la période" value={money(report.reduce((s,r)=>s+r.grossProfit,0))} hint="Coûts d'achat déduits" icon={TrendingUp} variant="green"/></div>
-          <section className="panel"><div className="section-heading"><div><h2>Rapport journalier</h2><p>Regroupement par date locale du poste</p></div></div>{report.length ? <div className="table-wrap"><table><thead><tr><th>Date</th><th>Nombre de ventes</th><th>Chiffre d'affaires</th><th>Marge brute</th></tr></thead><tbody>{report.map(r=><tr key={r.day}><td className="strong-cell">{r.day}</td><td>{r.count}</td><td className="strong-cell">{money(r.total)}</td><td className={r.grossProfit >= 0 ? "positive" : "negative"}>{money(r.grossProfit)}</td></tr>)}</tbody></table></div> : <Empty title="Aucune vente sur cette période" description="Choisissez une autre période ou réalisez votre première vente." icon={BarChart3}/>}</section>
+          <section className="panel report-filter"><div className="period-controls">
+            <label>Du <input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+            <label>Au <input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
+            <button type="button" className="secondary-btn" onClick={()=>{setFrom(localDate());setTo(localDate());}}>Aujourd'hui</button>
+            </div><span className="muted-cell">Ventes facturées, argent réellement encaissé, crédits et dépenses sont distincts. Les annulations sont exclues du chiffre d'affaires.</span></section>
+          <div className="stats-grid">
+            <Stat title="Ventes facturées" value={money(report.reduce((n,r)=>n+r.total,0))} hint={report.reduce((n,r)=>n+r.count,0)+" vente(s) active(s)"} icon={Wallet} variant="blue"/>
+            <Stat title="Encaissements nets" value={money(report.reduce((n,r)=>n+r.collected,0))} hint="Paiements de la période moins remboursements" icon={CreditCard} variant="green"/>
+            <Stat title="Crédits accordés" value={money(report.reduce((n,r)=>n+r.creditCreated,0))} hint="Soldes non réglés à l'ouverture de chaque vente" icon={UsersRound} variant="orange"/>
+            <Stat title="Bénéfice brut commercial" value={money(report.reduce((n,r)=>n+r.grossProfit,0))} hint="Coût des marchandises vendu déduit, même à crédit" icon={TrendingUp} variant="green"/>
+            <Stat title="Marge sur paiements (est.)" value={money(report.reduce((n,r)=>n+r.cashMarginEstimate,0))} hint="Marge proratisée aux encaissements nets" icon={Activity} variant="purple"/>
+            <Stat title="Dépenses enregistrées" value={money(report.reduce((n,r)=>n+r.expenses,0))} hint="Sommes sorties durant la période" icon={Wallet} variant="orange"/>
+          </div>
+          <section className="panel"><div className="section-heading"><div><h2>Rapport journalier</h2><p>Regroupement par date du PC. Les paiements des anciennes dettes apparaissent à leur date de règlement.</p></div></div>
+            {report.length?<div className="table-wrap report-sales-table"><table><thead><tr><th>Date</th><th>Ventes</th><th>Facturé</th><th>Encaissé net</th><th>Crédit créé</th><th>Bénéfice brut</th><th>Dépenses</th></tr></thead>
+              <tbody>{report.map(r=><tr key={r.day}><td className="strong-cell">{r.day}</td><td>{r.count}</td>
+                <td>{money(r.total)}</td><td className="positive">{money(r.collected)}</td>
+                <td className="negative">{money(r.creditCreated)}</td><td>{money(r.grossProfit)}</td><td>{money(r.expenses)}</td>
+              </tr>)}</tbody></table></div>
+              :<Empty title="Aucune opération sur cette période" description="Choisissez une autre période." icon={BarChart3}/>}
+          </section>
         </>}
 
         {page === "settings" && <>
