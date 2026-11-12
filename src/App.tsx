@@ -515,7 +515,11 @@ export default function App() {
             </section>
             <div className="settings-side">
               <section className="panel"><div className="section-heading"><div><h2>Aperçu du document</h2><p>Prévisualisation avec des données d'exemple</p></div><Printer size={19}/></div><div className="settings-ticket-preview"><ReceiptView shop={shop} receipt={sampleReceipt}/></div><p className="settings-preview-hint">Enregistrez les paramètres pour les utiliser sur les prochains tickets.</p></section>
-              <section className="panel"><div className="section-heading"><div><h2>Sauvegardes locales</h2><p>Protégez votre historique de vente</p></div><DatabaseBackup size={23} className="accent-icon"/></div><p className="backup-copy">Créez une copie cohérente de SQLite et transférez-la ensuite sur une clé USB distincte.</p><button className="secondary-btn" type="button" disabled={busy} onClick={doBackup}><Download size={17}/> Créer une sauvegarde locale</button><div className="warning-note"><CircleAlert size={17}/> La restauration et l'export direct sur clé USB restent à finaliser.</div></section>
+              <BackupPanel/>
+              <section className="panel"><div className="section-heading"><div><h2>Sauvegarde locale rapide</h2><p>Copie supplémentaire dans le dossier interne du logiciel.</p></div><DatabaseBackup size={23} className="accent-icon"/></div>
+                <button className="secondary-btn" type="button" disabled={busy} onClick={doBackup}><Download size={17}/> Créer une copie interne</button>
+                <p className="backup-copy">Pour une protection contre une panne du PC, utilisez le bouton « Sauvegarder sur clé USB » ci-dessus.</p>
+              </section>
             </div>
           </div>
         </>}
@@ -567,6 +571,9 @@ export default function App() {
       customer={editingCustomer} onClose={()=>{setCustomerEditorOpen(false);setEditingCustomer(null);}}
       onSaved={id=>{void afterCustomerSaved(id);}}/>}
     {paymentSale && <PaymentDialog sale={paymentSale} onClose={()=>setPaymentSale(null)} onSaved={()=>{void afterPaymentSaved();}}/>}
+    {editingSale&&<SaleEditor key={editingSale.id} sale={editingSale} customers={customers} catalog={catalog}
+      onClose={()=>setEditingSale(null)}
+      onSaved={()=>{setEditingSale(null);void reload().then(loadReport).then(()=>notify("Vente corrigée ou annulée. Paiements et stock recalculés sans double encaissement.")).catch(e=>notify(showError(e),"error"));}}/>}
     {productDetailId !== null && products.find(p=>p.id===productDetailId) && <ProductDetailModal
       product={products.find(p=>p.id===productDetailId)!} categories={categories}
       onClose={()=>setProductDetailId(null)}
