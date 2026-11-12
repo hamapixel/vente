@@ -1,6 +1,6 @@
 [package]
 name = "modestock-local"
-version = "0.2.3"
+version = "0.2.4"
 description = "VestiFlow, gestion de boutique et caisse hors ligne"
 authors = ["VestiFlow"]
 edition = "2021"

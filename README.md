@@ -80,3 +80,10 @@ La page **Caisse & ventes** est organisée en deux panneaux : la liste des produ
 ## Stabilité d'affichage sur ProBook et pavé tactile
 
 VestiFlow bloque désormais les gestes horizontaux dominants et le zoom WebView2 déclenché par pincement du pavé tactile / raccourcis Ctrl+molette ou Ctrl+Plus/Moins. Les gestes verticaux restent actifs sur les panneaux qui doivent défiler. Les cartes et boutons ne se déplacent plus au survol. Les tableaux se limitent à leur zone et les désignations longues passent à la ligne sans déplacer le document. Dans le formulaire **Ajouter un produit** et la prévisualisation **Ticket/Facture**, l'en-tête et les actions restent stables tandis que seul le contenu central peut défiler. Les tickets imprimés utilisent des colonnes proportionnelles et répartissent les noms longs sur plusieurs lignes.
+
+
+## VestiFlow 0.2.4 — aperçu du ticket corrigé sur les petits PC
+
+Le ticket de caisse pouvait apparaître sous forme d'une **bande horizontale écrasée** sur certains PC ProBook (hauteur de fenêtre réduite ou mise à l'échelle Windows importante). La modale ne définissait qu'une hauteur maximale, et la zone centrale flex pouvait se retrouver sans hauteur utile. Le correctif affecte une **hauteur réelle calculée selon la WebView** à la fenêtre Ticket/Facture ; seuls les éléments du document défilent, les boutons Retour et Imprimer restent accessibles. Le format thermique et A4 restent disponibles. Un test de géométrie du navigateur Edge est exécuté en CI sur cinq tailles de fenêtre.
+
+Le correctif n'affecte pas la base de données, les ventes, les stocks ou les dettes et conserve l'identifiant technique `ml.modestock.local` et le fichier `modestock.db`.

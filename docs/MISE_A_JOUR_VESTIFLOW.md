@@ -97,3 +97,8 @@ Avant installation, créer une sauvegarde SQLite et la copier sur une clé USB. 
 ## Vérification du rendu après mise à jour
 
 Le correctif de stabilité concerne les gestes du pavé tactile et le rendu frontend, sans changement de base SQLite. Avant réinstallation sur un autre PC, faire une sauvegarde externe. Après mise à jour, vérifier séparément les listes, les formulaires Ajouter un produit / Modifier, ainsi que l'aperçu et l'impression A4/80 mm avec une désignation d'article longue. Une validation réelle du ProBook reste nécessaire, en complément de la CI GitHub.
+
+
+## Mise à jour VestiFlow 0.2.3 → 0.2.4 (ticket ProBook)
+
+L'ancienne fenêtre de ticket pouvait écraser l'aperçu sur le deuxième PC. VestiFlow 0.2.4 corrige **uniquement l'affichage du ticket/facture** et ne modifie ni le chemin SQLite, ni son schéma. Fermer le logiciel, créer et copier une sauvegarde externe, installer le nouvel exécutable dans le même compte Windows, puis ouvrir une vente existante et vérifier : aperçu complet, défilement intérieur, boutons Retour/Imprimer et conservation des données. Conserver l'ancien installateur et la sauvegarde jusqu'à la validation réelle du ticket et de l'impression.

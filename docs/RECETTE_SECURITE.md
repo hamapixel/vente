@@ -108,3 +108,15 @@ La version ne sera commercialisable qu'après exécution de cette liste sur un P
 - [ ] Imprimer une vente avec un nom d'article très long sur ticket thermique 80 mm et A4 : aucune ligne n'est coupée ni projetée hors de la largeur du document ; titre et bouton Imprimer accessibles dans la fenêtre.
 - [ ] À 1366×768, 1024×600 et zoom Windows 125/150 %, inspecter la caisse, le catalogue et les modales.
 - [ ] Confirmer après mise à jour : identifiant Windows, données SQLite, stocks, ventes, dettes et paramètres sauvegardés.
+
+
+## VestiFlow 0.2.4 — affichage ticket et impression (tous formats d'écran)
+
+- [ ] Sur le PC ProBook photographié : Historique des ventes → icône Ticket : l'aperçu est **entier**, et non une mince bande horizontale.
+- [ ] Sur une fenêtre Windows 520×360, 800×600, 1024×600, 1366×768 et 1920×1080 : l'aperçu conserve une zone verticale et les boutons Retour/Imprimer sont visibles.
+- [ ] Avec mise à l'échelle Windows 100 %, 125 % et 150 %, vérifier l'ouverture du même ticket.
+- [ ] Un ticket long (plus de 20 lignes) défile **dans l'aperçu seulement** ; en-tête et boutons ne bougent pas.
+- [ ] Tester la navigation au clavier (Tab vers l'aperçu, flèches/Page suivante).
+- [ ] Vérifier un ticket thermique (format de document 80 mm) et une facture A4 avant d'imprimer réellement sur les deux types d'imprimantes.
+- [ ] Ne pas confondre la mise à l'échelle de l'aperçu à l'écran et les paramètres du pilote d'impression : sélectionner la bonne largeur papier dans Windows.
+- [ ] Avant installation sur le deuxième PC, sauvegarder SQLite sur un support externe et vérifier après mise à jour les anciennes ventes, produits et dettes.

@@ -69,3 +69,8 @@ Pour une première mise à jour, utiliser le protocole de [test de conservation 
 ## Affichage caisse VestiFlow 0.2.3
 
 La liste des produits et le panier possèdent deux défilements internes indépendants. La barre latérale demeure immobile et les deux barres de scroll sont invisibles. Vérifier le comportement sur l'ordinateur cible avant la mise en service ; ne pas considérer les tests CI comme une validation visuelle de la résolution ProBook.
+
+
+## Installation pilote de VestiFlow 0.2.4
+
+Construire l'installateur `VestiFlow_0.2.4_x64-setup.exe` avec `npm run tauri build`. Sur le PC de démonstration, fermer VestiFlow, sauvegarder la base SQLite sur clé USB et installer la nouvelle version **avec le même compte Windows** sans supprimer l'ancienne base. Vérifier dans Historique des ventes que l'aperçu ticket 80 mm / facture A4 occupe une vraie hauteur de lecture. Sélectionner le bon format papier avant une impression physique. La signature Windows et la restauration automatisée restent des prérequis pour la commercialisation.

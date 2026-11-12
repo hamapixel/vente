@@ -34,16 +34,19 @@ jobs:
         run: npm run build
       - name: Tester la recherche des produits et chaussures
         run: npm run test
+      - name: Tester le ticket dans Edge (5 tailles de fenetre)
+        shell: pwsh
+        run: ./scripts/check-ticket-preview.ps1
       - name: Verifier Rust et Tauri
         run: cargo check --manifest-path src-tauri/Cargo.toml
       - name: Tester la sécurité locale et la préservation SQLite
         run: cargo test --manifest-path src-tauri/Cargo.toml --lib
-      - name: Construire installateur Windows VestiFlow 0.2.3
+      - name: Construire installateur Windows VestiFlow 0.2.4
         run: npm run tauri build
       - name: Vérifier le fichier NSIS créé
         shell: pwsh
         run: |
-          $setups = @(Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "VestiFlow_0.2.3_*setup.exe" -ErrorAction Stop)
-          if ($setups.Count -ne 1) { throw "Installateur VestiFlow 0.2.3 introuvable" }
+          $setups = @(Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "VestiFlow_0.2.4_*setup.exe" -ErrorAction Stop)
+          if ($setups.Count -ne 1) { throw "Installateur VestiFlow 0.2.4 introuvable" }
           Write-Host "Setup : $($setups[0].FullName)"
           Get-FileHash $setups[0].FullName -Algorithm SHA256

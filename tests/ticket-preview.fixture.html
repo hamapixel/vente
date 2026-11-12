@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../src/styles.css">
+  <title>VestiFlow ticket responsive — CI fixture</title>
+</head>
+<body>
+  <div class="modal-overlay ticket-overlay">
+    <div class="modal ticket-modal stable-ticket-modal" role="dialog">
+      <div class="modal-header">
+        <div>
+          <span class="eyebrow">DOCUMENT DE VENTE</span>
+          <h2 id="doc-title">Ticket de caisse</h2>
+          <p>Vente VT-20261110-00002</p>
+        </div>
+        <button class="icon-button" type="button" aria-label="Fermer">×</button>
+      </div>
+      <div class="ticket-modal-scroll" role="region" tabindex="0">
+        <article class="ticket-preview" aria-label="Document de vente">
+          <header class="ticket-head"><h2>Boutique Démonstration</h2><p>Bamako, Mali</p></header>
+          <div class="ticket-meta"><strong>TICKET DE CAISSE</strong><span>N° VT-20261110-00002</span><span>10/11/2026</span></div>
+          <table class="ticket-table">
+            <thead><tr><th>Désignation</th><th>Qté</th><th>Montant</th></tr></thead>
+            <tbody id="lines"></tbody>
+          </table>
+          <div class="ticket-totals"><div class="ticket-grand"><span>Total de la vente</span><strong>75 000 FCFA</strong></div></div>
+          <footer class="ticket-footer">Merci pour votre achat.</footer>
+        </article>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn">Retour</button>
+        <button type="button" class="primary-btn">Imprimer</button>
+      </div>
+    </div>
+  </div>
+  <output id="geometry" data-result="pending"></output>
+  <script>
+    const a4 = location.hash.includes("a4");
+    if (a4) {
+      document.querySelector(".ticket-preview").classList.add("a4");
+      document.querySelector("#doc-title").textContent = "Facture / Reçu";
+    }
+    const tbody = document.getElementById("lines");
+    for (let n = 1; n <= 26; n++) {
+      const row = document.createElement("tr");
+      const item = document.createElement("td");
+      const title = document.createElement("strong");
+      title.textContent = "Chaussure de sport premium pointure 42 – désignation détaillée et très longue " + n;
+      const variant = document.createElement("small");
+      variant.textContent = "42 / Bleu marine · 5 000 FCFA / u.";
+      item.append(title, variant);
+      const qty = document.createElement("td");
+      qty.textContent = "1";
+      const amount = document.createElement("td");
+      amount.textContent = "5 000 FCFA";
+      row.append(item, qty, amount);
+      tbody.append(row);
+    }
+    function measure() {
+      const modal = document.querySelector(".stable-ticket-modal");
+      const preview = document.querySelector(".ticket-modal-scroll");
+      const header = document.querySelector(".modal-header");
+      const actions = document.querySelector(".modal-actions");
+      const m = modal.getBoundingClientRect();
+      const p = preview.getBoundingClientRect();
+      const h = header.getBoundingClientRect();
+      const a = actions.getBoundingClientRect();
+      const result = {
+        viewport: [innerWidth, innerHeight],
+        modalHeight: Math.round(m.height),
+        previewHeight: Math.round(p.height),
+        previewContentHeight: preview.scrollHeight,
+        scrollable: preview.scrollHeight > preview.clientHeight + 20,
+        previewInsideModal: p.top >= m.top && p.bottom <= m.bottom + 2,
+        headerAbovePreview: h.bottom <= p.top + 3,
+        actionsBelowPreview: a.top >= p.bottom - 3,
+        actionsVisible: a.bottom <= innerHeight + 2,
+        modalVisible: m.top >= -2 && m.bottom <= innerHeight + 2 && m.left >= -2 && m.right <= innerWidth + 2
+      };
+      const passed = result.previewHeight >= 95 && result.scrollable
+        && result.previewInsideModal && result.headerAbovePreview
+        && result.actionsBelowPreview && result.actionsVisible && result.modalVisible;
+      const output = document.getElementById("geometry");
+      output.dataset.result = passed ? "pass" : "fail";
+      output.textContent = JSON.stringify(result);
+    }
+    window.addEventListener("load", () => setTimeout(measure, 50));
+  </script>
+</body>
+</html>
