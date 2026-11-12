@@ -213,10 +213,9 @@ pub(crate) fn settle(conn:&mut Connection, sale_id:i64, amount:i64, method:&str,
     if crate::sales_management::cancelled(&tx,sale_id)? {
         return Err("Cette vente est annulée, aucun règlement ne peut être ajouté.".into());
     }
-    let paid:i64=tx.query_row(
-        "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE sale_id=?1",
-        params![sale_id],|r|r.get(0)
-    ).map_err(error)?;
+    // Les remboursements diminuent le montant effectivement conservé.
+    // Après une correction ultérieure, seul le solde net doit être encaissable.
+    let paid=crate::sales_management::paid_net(&tx,sale_id)?;
     let previous=tx.query_row(
         "SELECT sale_id,amount FROM sale_payments WHERE request_id=?1",
         params![request_id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?))
