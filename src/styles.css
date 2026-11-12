@@ -1172,3 +1172,65 @@ html,body,#root{
   .variant-search-field{height:47px}
   .variant-search-option{min-height:53px}
 }
+
+
+/* VestiFlow 0.3.0 — correction formulaire « Ajouter un produit ».
+   Un conteneur flex avec seulement max-height et sans height explicite
+   réduisait .product-form-scroll à une bande de quelques pixels.
+   Donner une vraie hauteur au dialogue permet de conserver l'en-tête,
+   les actions et surtout une zone centrale pleinement défilante. */
+.modal-overlay.product-overlay{
+  padding:clamp(8px,2.1dvh,20px);
+  align-items:center;
+  justify-items:center;
+}
+.modal.product-modal.stable-product-modal{
+  box-sizing:border-box;
+  width:min(760px,calc(100vw - 32px));
+  max-width:calc(100vw - 16px);
+  height:min(740px,calc(100dvh - 32px));
+  max-height:calc(100dvh - 16px);
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:clamp(13px,2vw,23px);
+}
+.modal.product-modal.stable-product-modal>.modal-header{
+  flex:0 0 auto;
+  margin-bottom:12px;
+}
+.modal.product-modal.stable-product-modal>.product-form-scroll{
+  flex:1 1 auto;
+  height:0;
+  min-height:0;
+  min-width:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scroll-padding-block:16px;
+  scrollbar-width:thin;
+  scrollbar-color:#dce7f5 transparent;
+}
+.modal.product-modal.stable-product-modal>.product-form-scroll::-webkit-scrollbar{display:block;width:5px}
+.modal.product-modal.stable-product-modal>.product-form-scroll::-webkit-scrollbar-thumb{background:#dce7f5;border-radius:10px}
+.modal.product-modal.stable-product-modal>.modal-actions{
+  flex:0 0 auto;
+  margin-top:9px;
+  padding-top:11px;
+  background:white;
+}
+@media(max-width:720px){
+  .modal.product-modal.stable-product-modal{width:calc(100vw - 20px);padding:13px}
+  .modal.product-modal.stable-product-modal .form-grid.two-cols{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-height:560px){
+  .modal-overlay.product-overlay{padding:8px}
+  .modal.product-modal.stable-product-modal{
+    height:calc(100dvh - 16px);
+    max-height:calc(100dvh - 16px);
+    padding:10px 13px;
+  }
+  .modal.product-modal.stable-product-modal>.modal-header{margin-bottom:7px}
+  .modal.product-modal.stable-product-modal>.modal-actions{margin-top:6px;padding-top:7px}
+}
