@@ -50,7 +50,8 @@ pub(crate) fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
         )?;
         tx.execute("INSERT INTO schema_migrations(name) VALUES('legacy_paid_sales_v1')",[])?;
     }
-    tx.commit()
+    tx.commit()?;
+    crate::sales_management::migrate(conn)
 }
 
 #[derive(Serialize)]
