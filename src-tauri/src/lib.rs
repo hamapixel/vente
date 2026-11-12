@@ -1,5 +1,6 @@
 mod commerce;
 mod sales_management;
+mod backup_management;
 use chrono::Local;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier, password_hash::{rand_core::OsRng, SaltString}};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -736,6 +737,7 @@ fn backup_now(app: tauri::AppHandle, db: State<'_, Db>, auth: State<'_, Auth>) -
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let directory=app.path().app_local_data_dir()?;
             fs::create_dir_all(&directory)?;
@@ -759,7 +761,8 @@ pub fn run() {
             commerce::record_payment,commerce::update_product,
             commerce::product_history,
             sales_management::get_sale_detail,sales_management::change_sale,
-            sales_management::cancel_sale,sales_management::day_summary
+            sales_management::cancel_sale,sales_management::day_summary,
+            backup_management::export_backup,backup_management::restore_backup
         ])
         .run(tauri::generate_context!())
         .expect("Erreur de lancement de VestiFlow");
