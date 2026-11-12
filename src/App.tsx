@@ -373,10 +373,15 @@ export default function App() {
       <div className={"content" + (page === "pos" ? " content-pos" : "")} ref={contentScrollRef}>
         {isBrowserPreview && <div className="browser-warning"><CircleAlert size={19}/><span><strong>Aperçu navigateur uniquement.</strong> Pour enregistrer des ventes et accéder à SQLite, lancez <code>npm run tauri dev</code> et utilisez la fenêtre de l'application, pas l'onglet localhost.</span></div>}
         {page === "dashboard" && <>
-          <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Voici l'activité de votre boutique aujourd'hui.</p></div><button className="primary-btn" onClick={() => navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
+          <div className="page-heading"><div><div className="eyebrow">TABLEAU DE BORD</div><h1>Bonjour, bienvenue <span className="wave">✦</span></h1><p>Suivez vos ventes, paiements et bénéfices pour la date sélectionnée.</p></div><button className="primary-btn" onClick={() => navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
+          <div className="period-controls dashboard-date-control">
+            <label>Journée à analyser <input type="date" value={dashboardDay} onChange={e=>setDashboardDay(e.target.value)}/></label>
+            <button className="secondary-btn" type="button" onClick={()=>setDashboardDay(localDate())}>Aujourd'hui</button>
+            <span className="muted-cell">Ventes facturées et argent encaissé sont calculés séparément.</span>
+          </div>
           <div className="stats-grid">{cards.map(c => <Stat key={c.title} {...c}/>)}</div>
           <div className="dashboard-grid">
-            <section className="panel"><div className="section-heading"><div><h2>Activité commerciale</h2><p>Les chiffres clés de votre boutique</p></div><span className="soft-label">Aujourd'hui</span></div>
+            <section className="panel"><div className="section-heading"><div><h2>Activité commerciale</h2><p>Les chiffres clés de votre boutique</p></div><span className="soft-label">{dashboardDay}</span></div>
               <div className="overview-summary"><div><span>Articles en stock</span><strong>{itemsInStock}</strong></div><div><span>Variantes</span><strong>{dashboard.variantCount}</strong></div><div><span>Ventes</span><strong>{dashboard.salesCount}</strong></div></div>
               <div className="callout"><div className="callout-icon"><BadgeCheck size={20}/></div><div><strong>Vos chiffres sont enregistrés localement</strong><p>VestiFlow fonctionne sans connexion Internet, directement sur cet ordinateur.</p></div></div>
             </section>
@@ -446,7 +451,17 @@ export default function App() {
 
         {page === "sales" && <>
           <div className="page-heading"><div><div className="eyebrow">HISTORIQUE</div><h1>Historique des ventes</h1><p>Consultez les transactions enregistrées sur cet ordinateur.</p></div><button className="primary-btn" onClick={()=>navigate("pos")}><Plus size={18}/> Nouvelle vente</button></div>
-          <section className="panel"><div className="section-heading"><div><h2>Transactions récentes</h2><p>Ventes comptant et à crédit avec suivi des règlements</p></div></div>{sales.length ? recentTable(sales) : <Empty title="Aucune transaction" description="Les ventes apparaîtront ici après votre premier encaissement." icon={FileText}/>}</section>
+          <section className="panel">
+            <div className="section-heading"><div><h2>Transactions par date</h2><p>Corrigez les articles ou annulez une vente sans repayer les anciens acomptes.</p></div></div>
+            <div className="period-controls sale-date-control">
+              <label>Date des ventes <input type="date" value={salesDay} onChange={e=>setSalesDay(e.target.value)}/></label>
+              <button type="button" className="secondary-btn" onClick={()=>setSalesDay(localDate())}>Aujourd'hui</button>
+              <button type="button" className="secondary-btn" onClick={()=>setSalesDay("")}>Toutes les dates</button>
+            </div>
+            {sales.some(s=>!salesDay||s.createdAt.slice(0,10)===salesDay)
+              ? recentTable(sales.filter(s=>!salesDay||s.createdAt.slice(0,10)===salesDay))
+              : <Empty title="Aucune vente pour cette date" description="Choisissez une autre journée ou affichez toutes les dates." icon={FileText}/>}
+          </section>
         </>}
 
         {page === "customers" && <CustomersPanel
