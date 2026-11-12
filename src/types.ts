@@ -132,6 +132,7 @@ export interface PaymentEntry {
   amount: number;
   method: string;
   createdAt: string;
+  kind: "encaissement" | "remboursement";
 }
 export interface ProductEdit {
   productId: number;
