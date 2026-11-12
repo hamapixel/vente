@@ -35,7 +35,7 @@ const sampleReceipt: ReceiptDocument = {
   lines: [{ name: "Maillot de football", variant: "L / Bleu", quantity: 1, unitPrice: 10000, lineTotal: 10000 }]
 };
 const isBrowserPreview = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window);
-const categories = ["Maillots", "T-shirts", "Chemises", "Polos", "Jeans", "Pantalons", "Robes", "Chaussures", "Accessoires", "Autres"];
+const categories = ["Divers", "Maillots", "T-shirts", "Chemises", "Polos", "Jeans", "Pantalons", "Robes", "Chaussures", "Baskets", "Sandales", "Ceintures", "Sacs", "Montres", "Bijoux", "Parfums", "Cosmétiques", "Électronique", "Maison", "Accessoires", "Autres"];
 const navigation = [
   { id: "dashboard" as const, label: "Vue d'ensemble", icon: LayoutDashboard },
   { id: "pos" as const, label: "Caisse & ventes", icon: ShoppingBag },
@@ -85,6 +85,7 @@ export default function App() {
   const checkoutRequestIdRef = useRef<string>(crypto.randomUUID());
   const [loaded, setLoaded] = useState(false);
   const [query, setQuery] = useState("");
+  const [visibleLimit, setVisibleLimit] = useState(80);
   const [category, setCategory] = useState("Tous");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -101,7 +102,7 @@ export default function App() {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 6); return localDate(d); });
   const [to, setTo] = useState(localDate());
   const [report, setReport] = useState<ReportDay[]>([]);
-  const [draft, setDraft] = useState<ProductDraft>({ name: "", category: "Maillots", purchasePrice: "", salePrice: "", variants: [] });
+  const [draft, setDraft] = useState<ProductDraft>({ name: "", category: "Divers", purchasePrice: "", salePrice: "", variants: [] });
   const [variantRows, setVariantRows] = useState<VariantRow[]>([{ id: 1, size: "", color: "", quantity: "" }]);
 
   const notify = (text: string, kind: "success" | "error" = "success") => setNotice({ text, kind });
@@ -175,6 +176,7 @@ export default function App() {
     reader.readAsDataURL(file);
   }
 
+  useEffect(() => setVisibleLimit(80), [query, category, page]);
   const products = useMemo<ProductGroup[]>(() => {
     const map = new Map<number, ProductGroup>();
     for (const v of catalog) {
@@ -183,6 +185,7 @@ export default function App() {
     }
     return Array.from(map.values());
   }, [catalog]);
+  const availableCategories = useMemo(() => Array.from(new Set([...categories, ...catalog.map(v => v.category)])), [catalog]);
   const filtered = products.filter(p =>
     (category === "Tous" || p.category === category) && matchesProduct(p, query));
   const filteredVariants = catalog.filter(v => matchesVariant(v, query));
@@ -282,12 +285,12 @@ export default function App() {
       return;
     }
     const variants = variantRows.map(row => ({
-      size: row.size.trim(),
+      size: row.size.trim() || "Unique",
       color: row.color.trim() || "Standard",
       quantity: Number(row.quantity)
     }));
     if (!variants.length || variants.some(v => !v.size || !Number.isSafeInteger(v.quantity) || v.quantity < 0)) {
-      notify("Renseignez une taille et une quantité entière positive ou nulle sur chaque ligne.", "error");
+      notify("Renseignez une quantité entière positive ou nulle pour chaque variante.", "error");
       return;
     }
     const keys = variants.map(v => v.size.toLocaleLowerCase() + "|" + v.color.toLocaleLowerCase());
@@ -299,7 +302,7 @@ export default function App() {
     try {
       await api.createProduct({ ...draft, purchasePrice, salePrice, variants });
       setAddModal(false);
-      setDraft({ name: "", category: "Maillots", purchasePrice: "", salePrice: "", variants: [] });
+      setDraft({ name: "", category: "Divers", purchasePrice: "", salePrice: "", variants: [] });
       setVariantRows([{ id: 1, size: "", color: "", quantity: "" }]);
       await reload(); notify("Produit ajouté au catalogue.");
     } catch (e) { notify(showError(e), "error"); } finally { setBusy(false); }
@@ -399,9 +402,10 @@ export default function App() {
         {page === "pos" && <>
           <div className="page-heading"><div><div className="eyebrow">POINT DE VENTE</div><h1>Caisse & ventes</h1><p>Sélectionnez des articles, leurs tailles et couleurs, puis encaissez.</p></div><span className="count-chip"><ShoppingCart size={17}/> {cart.reduce((a,b) => a+b.quantity,0)} article(s)</span></div>
           <div className="pos-layout">
-            <div className="pos-catalog"><div className="catalog-toolbar"><div className="search-field"><Search size={18}/><input placeholder="Maillot, chaussure, pointure 42, couleur, référence…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="select-wrap"><select value={category} onChange={e => setCategory(e.target.value)}><option>Tous</option>{categories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div>
+            <div className="pos-catalog"><div className="catalog-toolbar"><div className="search-field"><Search size={18}/><input placeholder="Maillot, chaussure, pointure 42, couleur, référence…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="select-wrap"><select value={category} onChange={e => setCategory(e.target.value)}><option>Tous</option>{availableCategories.map(c => <option key={c}>{c}</option>)}</select><ChevronDown size={16}/></div></div>
               <div className="pos-products-scroll" role="region" aria-label="Liste des produits de la caisse" tabIndex={0}>
-              {filtered.length ? <div className="product-grid">{filtered.map(p => <button className="product-card" key={p.id} title={p.name} onClick={() => setSelectedId(p.id)}><div className="product-picture">{p.category === "Chaussures" ? <Footprints size={38} strokeWidth={1.3}/> : <Shirt size={38} strokeWidth={1.3}/>}<span className="product-badge">{p.variants.reduce((a,v) => a+v.quantity,0)} en stock</span></div><div className="product-body"><span className="product-category">{p.category}</span><strong>{p.name}</strong><div className="product-foot"><span>{money(Math.min(...p.variants.map(v => v.salePrice)))}</span><span className="add-circle"><Plus size={17}/></span></div></div></button>)}</div> : <Empty title={products.length ? "Aucun résultat" : "Votre catalogue est vide"} description={products.length ? "Essayez une autre recherche." : "Ajoutez d'abord des vêtements dans l'onglet Catalogue."} icon={Shirt}/>}
+              {filtered.length ? <div className="product-grid">{filtered.slice(0,visibleLimit).map(p => <button className="product-card" key={p.id} title={p.name} onClick={() => setSelectedId(p.id)}><div className="product-picture">{p.category === "Chaussures" ? <Footprints size={38} strokeWidth={1.3}/> : <Shirt size={38} strokeWidth={1.3}/>}<span className="product-badge">{p.variants.reduce((a,v) => a+v.quantity,0)} en stock</span></div><div className="product-body"><span className="product-category">{p.category}</span><strong>{p.name}</strong><div className="product-foot"><span>{money(Math.min(...p.variants.map(v => v.salePrice)))}</span><span className="add-circle"><Plus size={17}/></span></div></div></button>)}</div> : <Empty title={products.length ? "Aucun résultat" : "Votre catalogue est vide"} description={products.length ? "Essayez une autre recherche." : "Ajoutez votre premier article dans le catalogue."} icon={Shirt}/>}
+              {filtered.length > visibleLimit && <button type="button" className="catalog-more" onClick={()=>setVisibleLimit(n=>n+80)}>Afficher 80 articles supplémentaires · {filtered.length-visibleLimit} restants</button>}
               </div>
             </div>
             <aside className="cart-panel"><div className="cart-header"><div><h2>Panier actuel</h2><p>{cart.length} ligne(s) dans cette vente</p></div><span className="cart-icon"><ShoppingCart size={21}/></span></div>
@@ -434,9 +438,10 @@ export default function App() {
 
         {page === "products" && <>
           <div className="page-heading"><div><div className="eyebrow">VOTRE CATALOGUE</div><h1>Produits & variantes</h1><p>Retrouvez chaque article avec ses tailles, ses couleurs et son stock disponible.</p></div><button className="primary-btn" onClick={()=>setAddModal(true)}><Plus size={18}/> Ajouter un produit</button></div>
-          <section className="panel"><div className="section-heading"><div><h2>Vêtements et chaussures</h2><p>{products.length} produit(s), {catalog.length} variante(s)</p></div><span className="soft-label"><PackageCheck size={15}/> Stock local</span></div>
+          <section className="panel"><div className="section-heading"><div><h2>Tous les articles de votre boutique</h2><p>{products.length} produit(s), {catalog.length} variante(s)</p></div><span className="soft-label"><PackageCheck size={15}/> Stock local</span></div>
             <div className="catalog-toolbar compact-toolbar"><div className="search-field"><Search size={18}/><input aria-label="Rechercher dans le catalogue" placeholder="Rechercher nom, chaussure, taille, couleur, référence…" value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={()=>setQuery("")}><X size={15}/></button>}</div><span className="search-count">{filteredVariants.length} résultat(s)</span></div>
-            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th><th>Détail</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="strong-cell" title={v.name}>{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>setProductDetailId(v.productId)}><FileText size={14}/> Détails / Modifier</button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun produit correspondant" : "Votre boutique prend forme ici"} description={catalog.length ? "Essayez une taille, une couleur ou une autre référence." : "Ajoutez votre premier produit avec ses tailles, couleurs et prix."} icon={Shirt}/>}
+            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Produit</th><th>Catégorie</th><th>Taille</th><th>Couleur</th><th>Prix de vente</th><th>Quantité</th><th>Détail</th></tr></thead><tbody>{filteredVariants.slice(0,visibleLimit).map(v=><tr key={v.id}><td className="strong-cell" title={v.name}>{v.name}<small className="sku-line">{v.sku}</small></td><td>{v.category}</td><td><span className="size-badge">{v.size}</span></td><td>{v.color}</td><td className="strong-cell">{money(v.salePrice)}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>setProductDetailId(v.productId)}><FileText size={14}/> Détails / Modifier</button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun produit correspondant" : "Votre boutique prend forme ici"} description={catalog.length ? "Essayez une taille, une couleur ou une autre référence." : "Ajoutez votre premier produit avec ses tailles, couleurs et prix."} icon={Shirt}/>}
+            {filteredVariants.length > visibleLimit && <button type="button" className="catalog-more" onClick={()=>setVisibleLimit(n=>n+80)}>Afficher 80 variantes supplémentaires · {filteredVariants.length-visibleLimit} restantes</button>}
           </section>
         </>}
 
@@ -445,7 +450,8 @@ export default function App() {
           <div className="stats-grid two"><Stat title="Pièces disponibles" value={String(itemsInStock)} hint="Toutes variantes confondues" icon={PackageCheck} variant="blue"/><Stat title="Stock faible ou épuisé" value={String(dashboard.lowStock)} hint="Variantes de 3 pièces ou moins" icon={CircleAlert} variant="orange"/></div>
           <section className="panel"><div className="section-heading"><div><h2>État des stocks</h2><p>Les corrections sont enregistrées dans l'historique SQLite.</p></div></div>
             <div className="catalog-toolbar compact-toolbar"><div className="search-field"><Search size={18}/><input aria-label="Rechercher dans le stock" placeholder="Rechercher un article, une pointure, une couleur…" value={query} onChange={e=>setQuery(e.target.value)}/>{query && <button type="button" className="search-clear" aria-label="Effacer la recherche" onClick={()=>setQuery("")}><X size={15}/></button>}</div><span className="search-count">{filteredVariants.length} résultat(s)</span></div>
-            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Article</th><th>Variante</th><th>Stock</th><th>Action</th></tr></thead><tbody>{filteredVariants.map(v=><tr key={v.id}><td className="muted-cell">{v.sku}</td><td className="strong-cell">{v.name}</td><td>{v.size} / {v.color}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>{setStockVariant(v);setStockDelta("1");setStockReason("Réapprovisionnement");}}>Ajuster <ArrowRight size={15}/></button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun résultat" : "Aucun stock à afficher"} description={catalog.length ? "Essayez un autre terme de recherche." : "Créez vos premiers produits pour commencer le suivi."}/>}
+            {filteredVariants.length ? <div className="table-wrap"><table><thead><tr><th>Référence</th><th>Article</th><th>Variante</th><th>Stock</th><th>Action</th></tr></thead><tbody>{filteredVariants.slice(0,visibleLimit).map(v=><tr key={v.id}><td className="muted-cell">{v.sku}</td><td className="strong-cell">{v.name}</td><td>{v.size} / {v.color}</td><td><span className={"stock-pill " + (v.quantity <= 3 ? "low" : "")}>{v.quantity} pcs</span></td><td><button className="table-action" onClick={()=>{setStockVariant(v);setStockDelta("1");setStockReason("Réapprovisionnement");}}>Ajuster <ArrowRight size={15}/></button></td></tr>)}</tbody></table></div> : <Empty title={catalog.length ? "Aucun résultat" : "Aucun stock à afficher"} description={catalog.length ? "Essayez un autre terme de recherche." : "Créez vos premiers produits pour commencer le suivi."}/>}
+            {filteredVariants.length > visibleLimit && <button type="button" className="catalog-more" onClick={()=>setVisibleLimit(n=>n+80)}>Afficher 80 variantes supplémentaires · {filteredVariants.length-visibleLimit} restantes</button>}
           </section>
         </>}
 
@@ -532,13 +538,14 @@ export default function App() {
     {addModal && <div className="modal-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAddModal(false);}}>
       <form className="modal product-modal stable-product-modal" onSubmit={doAddProduct}>
         <div className="modal-header">
-          <div><span className="eyebrow">NOUVEL ARTICLE</span><h2>Ajouter un produit</h2><p>Indiquez les informations de l’article, ses variantes et les quantités initiales.</p></div>
+          <div><span className="eyebrow">NOUVEL ARTICLE</span><h2>Ajouter un produit</h2><p>Créez un vêtement, une chaussure, une ceinture ou tout autre article avec son stock.</p></div>
           <button type="button" className="icon-button" onClick={()=>setAddModal(false)} aria-label="Fermer"><X size={20}/></button>
         </div>
         <div className="product-form-scroll" role="region" aria-label="Champs et variantes du produit" tabIndex={0}>
+        <datalist id="vestiflow-categories">{availableCategories.map(c=><option key={c} value={c}/>)}</datalist>
         <div className="form-grid two-cols">
           <label>Nom du produit<input required placeholder="Ex. Maillot domicile" value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})}/></label>
-          <label>Catégorie<select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}>{categories.map(c=><option key={c}>{c}</option>)}</select></label>
+          <label>Catégorie (modifiable librement)<input required maxLength={60} list="vestiflow-categories" placeholder="Ex. Ceintures, Quincaillerie, Divers…" value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value})}/></label>
           <label>Prix d'achat (FCFA)<input type="number" required min="0" placeholder="Ex. 5000" value={draft.purchasePrice} onChange={e=>setDraft({...draft,purchasePrice:e.target.value})}/></label>
           <label>Prix de vente (FCFA)<input type="number" required min="0" placeholder="Ex. 8500" value={draft.salePrice} onChange={e=>setDraft({...draft,salePrice:e.target.value})}/></label>
         </div>
@@ -553,14 +560,14 @@ export default function App() {
           <div className="variant-grid-head" aria-hidden="true"><span>Taille</span><span>Couleur</span><span>Quantité</span><span></span></div>
           <div className="variant-editor-list">
             {variantRows.map(row => <div className="variant-editor-row" key={row.id}>
-              <input aria-label="Taille" required list="size-options" placeholder="Ex. M, XL, 32…" value={row.size} onChange={e=>updateVariantRow(row.id,"size",e.target.value)}/>
+              <input aria-label="Taille ou modèle (facultatif)" list="size-options" placeholder="Unique, M, XL, 42…" value={row.size} onChange={e=>updateVariantRow(row.id,"size",e.target.value)}/>
               <input aria-label="Couleur" placeholder="Ex. Bleu" value={row.color} onChange={e=>updateVariantRow(row.id,"color",e.target.value)}/>
               <input aria-label="Quantité" type="number" required min="0" step="1" placeholder="Ex. 5" value={row.quantity} onChange={e=>updateVariantRow(row.id,"quantity",e.target.value)}/>
               <button type="button" className="remove-variant" aria-label="Supprimer cette variante" title="Supprimer la variante" disabled={variantRows.length===1} onClick={()=>setVariantRows(rows=>rows.filter(r=>r.id!==row.id))}><Trash2 size={17}/></button>
             </div>)}
           </div>
           <button type="button" className="add-variant-btn" onClick={addVariantRow}><Plus size={17}/> Ajouter une taille / couleur</button>
-          <p className="variant-hint">Astuce : vous pouvez saisir les tailles textiles (M, L, XL) ou numériques (30, 32, 34). Couleur vide = Standard.</p>
+          <p className="variant-hint">Astuce : vous pouvez saisir les tailles textiles (M, L, XL) ou numériques (30, 32, 34). Taille vide = Unique et couleur vide = Standard pour les articles sans taille, comme ceintures ou accessoires.</p>
         </div>
         </div>
         <div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setAddModal(false)}>Annuler</button><button type="submit" disabled={busy} className="primary-btn"><Plus size={17}/> Enregistrer le produit</button></div>
@@ -575,7 +582,7 @@ export default function App() {
       onClose={()=>setEditingSale(null)}
       onSaved={()=>{setEditingSale(null);void reload().then(loadReport).then(()=>notify("Vente corrigée ou annulée. Paiements et stock recalculés sans double encaissement.")).catch(e=>notify(showError(e),"error"));}}/>}
     {productDetailId !== null && products.find(p=>p.id===productDetailId) && <ProductDetailModal
-      product={products.find(p=>p.id===productDetailId)!} categories={categories}
+      product={products.find(p=>p.id===productDetailId)!} categories={availableCategories}
       onClose={()=>setProductDetailId(null)}
       onSaved={()=>{setProductDetailId(null);void reload().then(()=>notify("Produit modifié.")).catch(e=>notify(showError(e),"error"));}}
     />}
