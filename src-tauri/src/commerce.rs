@@ -105,12 +105,13 @@ pub fn list_customers(db: State<'_, Db>, auth: State<'_, Auth>) -> Result<Vec<Cu
     let mut stmt=conn.prepare(r#"
         SELECT c.id,c.name,c.phone,c.address,c.note,c.created_at,
                COALESCE(SUM(s.total),0),
-               COALESCE(SUM((SELECT COALESCE(SUM(p.amount),0)
-                             FROM sale_payments p WHERE p.sale_id=s.id)),0),
+               COALESCE(SUM(
+                   COALESCE((SELECT SUM(p.amount) FROM sale_payments p WHERE p.sale_id=s.id),0)
+                   -COALESCE((SELECT SUM(r.amount) FROM sale_refunds r WHERE r.sale_id=s.id),0)),0),
                COUNT(s.id)
         FROM customers c
         LEFT JOIN sale_customers sc ON sc.customer_id=c.id
-        LEFT JOIN sales s ON s.id=sc.sale_id
+        LEFT JOIN sales s ON s.id=sc.sale_id AND NOT EXISTS(SELECT 1 FROM sale_cancellations cc WHERE cc.sale_id=s.id)
         GROUP BY c.id
         ORDER BY c.name COLLATE NOCASE
     "#).map_err(error)?;
@@ -140,10 +141,11 @@ pub fn list_customer_sales(db:State<'_,Db>,auth:State<'_,Auth>,customer_id:i64)
     let conn=db.0.lock().map_err(error)?;
     let mut stmt=conn.prepare(
         "SELECT s.id,s.reference,s.created_at,s.total,
-                COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0),
+                COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id=s.id),0)
+                -COALESCE((SELECT SUM(amount) FROM sale_refunds WHERE sale_id=s.id),0),
                 s.payment_method
          FROM sales s JOIN sale_customers sc ON sc.sale_id=s.id
-         WHERE sc.customer_id=?1 ORDER BY s.id DESC"
+         WHERE sc.customer_id=?1 AND NOT EXISTS(SELECT 1 FROM sale_cancellations cc WHERE cc.sale_id=s.id) ORDER BY s.id DESC"
     ).map_err(error)?;
     let rows=stmt.query_map(params![customer_id],|r|{
         let total:i64=r.get(3)?;
@@ -200,6 +202,9 @@ pub(crate) fn settle(conn:&mut Connection, sale_id:i64, amount:i64, method:&str,
         "SELECT total,reference FROM sales WHERE id=?1",params![sale_id],
         |r|Ok((r.get(0)?,r.get(1)?))
     ).optional().map_err(error)?.ok_or("Vente introuvable.")?;
+    if crate::sales_management::cancelled(&tx,sale_id)? {
+        return Err("Cette vente est annulée, aucun règlement ne peut être ajouté.".into());
+    }
     let paid:i64=tx.query_row(
         "SELECT COALESCE(SUM(amount),0) FROM sale_payments WHERE sale_id=?1",
         params![sale_id],|r|r.get(0)
