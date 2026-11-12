@@ -1017,3 +1017,73 @@ html,body,#root{
   .modal.ticket-modal.stable-ticket-modal{display:none!important}
   .print-only .ticket-preview{height:auto!important;overflow:visible!important}
 }
+
+
+/* VestiFlow 0.3 — ventes, règlements et récupération SQLite */
+.dashboard-date-control,.sale-date-control{
+  display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin:0 0 16px;
+  background:#fff;border:1px solid #e2e9f4;border-radius:12px;padding:13px 16px;
+}
+.dashboard-date-control label,.sale-date-control label{
+  display:grid;gap:5px;font-size:11px;font-weight:700;color:#5a7190;
+}
+.dashboard-date-control input,.sale-date-control input{
+  height:39px;border:1px solid #dfe7f1;border-radius:9px;padding:0 11px;
+  background:#fff;color:#28415f;max-width:200px
+}
+.dashboard-date-control .muted-cell{flex:1 1 230px;font-size:11px;line-height:1.45}
+.report-sales-table th,.report-sales-table td{overflow-wrap:anywhere}
+.sale-edit-modal{
+  width:min(760px,calc(100vw - 24px));
+  max-width:calc(100vw - 24px);
+  height:min(790px,calc(100dvh - 24px));
+  max-height:calc(100dvh - 24px);
+  display:flex;flex-direction:column;overflow:hidden;
+  padding:18px 22px;
+}
+.sale-edit-modal>.modal-header,.sale-edit-modal>.sale-editor-switch,.sale-edit-modal>.modal-actions{flex:0 0 auto}
+.sale-edit-modal>.modal-header{margin-bottom:10px}
+.sale-editor-switch{display:flex;gap:6px;background:#f1f5fb;padding:5px;border-radius:11px;margin-bottom:12px}
+.sale-editor-switch button{border:0;background:transparent;padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:8px;font-weight:750;color:#6d829d;flex:1}
+.sale-editor-switch button.active{background:#fff;color:#2465aa;box-shadow:0 2px 10px #172e5015}
+.sale-editor-switch button.danger{color:#b83d44}
+.sale-edit-scroll{min-height:0;flex:1 1 0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none}
+.sale-edit-scroll::-webkit-scrollbar{display:none}
+.sale-editor-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.sale-editor-numbers>div{border-radius:10px;background:#f4f7fc;padding:12px;min-width:0}
+.sale-editor-numbers span{color:#8b9bb1;font-size:10px;display:block;margin-bottom:6px}
+.sale-editor-numbers strong{font-size:16px;overflow-wrap:anywhere;color:#213c60}
+.sale-edit-lines{display:grid;gap:7px;margin:10px 0 15px}
+.sale-edit-line{display:flex;align-items:center;gap:10px;border:1px solid #e4eaf3;border-radius:9px;padding:9px 10px;background:#fff}
+.sale-edit-line>div{flex:1 1 0;min-width:0}
+.sale-edit-line strong{display:block;font-size:11px;color:#2e455f;line-height:1.3;overflow-wrap:anywhere}
+.sale-edit-line small{display:block;font-size:10px;color:#8298b2;line-height:1.45;margin-top:4px;overflow-wrap:anywhere}
+.sale-edit-line>input{flex:0 0 68px;width:68px;height:36px;border:1px solid #dce5ef;border-radius:8px;padding:6px 8px;color:#274c73}
+.sale-refund-alert{padding:13px;background:#fff6eb;border:1px solid #efd2a8;border-radius:10px;margin:13px 0}
+.sale-refund-alert>strong{display:flex;gap:7px;align-items:center;color:#a36a1e;font-size:12px}
+.sale-refund-alert p{font-size:11px;line-height:1.55;color:#8e724e;margin:9px 0}
+.sale-refund-alert label{display:flex;gap:8px;align-items:flex-start;color:#7e5b31;font-size:11px;line-height:1.45}
+.sale-refund-alert input[type=checkbox]{width:17px;height:17px;flex-shrink:0}
+.sale-confirm-label{display:grid;gap:6px;font-size:11px;color:#546c87;font-weight:700;margin:12px 0}
+.sale-confirm-label input,.sale-confirm-label select,.sale-confirm-label textarea{border:1px solid #dbe6f2;border-radius:9px;padding:10px;min-width:0;width:100%;max-width:100%;color:#284460}
+.sale-confirm-label input[type=checkbox]{width:17px;align-self:center}
+.sale-edit-modal>.modal-actions{margin-top:10px;padding-top:11px;border-top:1px solid #e7eef8;background:#fff}
+.sale-danger{background:#bd4a4a!important;border-color:#bd4a4a!important;color:#fff!important}
+.backup-usb-panel .section-heading{align-items:flex-start}
+.backup-usb-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+.backup-usb-actions>button{flex:1 1 180px;justify-content:center;min-height:42px}
+.backup-usb-panel .callout{margin-top:12px;line-height:1.5}
+.backup-usb-panel .auth-error,.backup-success{margin:12px 0 0;overflow-wrap:anywhere}
+.backup-success{color:#287d5a;display:flex;align-items:center;gap:8px;font-size:11px}
+.backup-restore-confirm{max-height:calc(100dvh - 22px);overflow-y:auto}
+.backup-selected-file{overflow-wrap:anywhere;background:#eff4fb;padding:10px;border-radius:8px;font-size:11px;color:#466082;display:flex;gap:6px;align-items:center}
+@media(max-width:680px){
+  .sale-edit-modal{padding:12px 13px}
+  .sale-editor-switch{flex-wrap:wrap}
+  .sale-editor-switch button{font-size:10px;padding:8px}
+  .sale-editor-numbers{gap:7px}
+  .sale-editor-numbers strong{font-size:13px}
+  .sale-edit-line{gap:6px;padding:7px}
+  .sale-edit-line>input{flex-basis:54px;width:54px;padding-inline:5px}
+  .dashboard-date-control,.sale-date-control{padding:10px}
+}
